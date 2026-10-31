@@ -372,7 +372,7 @@ export default function TestCases() {
               <Button
                 type="text"
                 size="mini"
-                className="tp-danger-button"
+                status="danger"
                 icon={<IconDelete />}
                 aria-label={`删除 ${record.name}`}
               />
@@ -392,19 +392,10 @@ export default function TestCases() {
         description="统一管理 Playwright 测试脚本。每次编辑会自动递增版本号，便于追踪脚本演进。"
         actions={
           <>
-            <Button
-              className="tp-button-ghost"
-              icon={<IconRefresh />}
-              onClick={() => setRefreshKey((key) => key + 1)}
-            >
+            <Button icon={<IconRefresh />} onClick={() => setRefreshKey((key) => key + 1)}>
               刷新
             </Button>
-            <Button
-              type="primary"
-              className="btn-ink"
-              icon={<IconPlus />}
-              onClick={openCreate}
-            >
+            <Button type="primary" icon={<IconPlus />} onClick={openCreate}>
               新增测试用例
             </Button>
           </>
@@ -463,17 +454,10 @@ export default function TestCases() {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button
-                type="primary"
-                className="btn-ink"
-                icon={<IconSearch />}
-                onClick={applyFilters}
-              >
+              <Button type="primary" icon={<IconSearch />} onClick={applyFilters}>
                 查询
               </Button>
-              <Button className="tp-button-ghost" onClick={resetFilters}>
-                重置
-              </Button>
+              <Button onClick={resetFilters}>重置</Button>
             </div>
           </div>
 
@@ -573,7 +557,6 @@ export default function TestCases() {
         focusLock
         afterOpen={syncFormValues}
         afterClose={() => form.resetFields()}
-        className="tp-modal tp-script-modal"
         style={{ width: 760, maxWidth: "calc(100vw - 32px)" }}
       >
         <Form
@@ -638,7 +621,6 @@ export default function TestCases() {
               className="sm:col-span-2"
             >
               <Input.TextArea
-                className="tp-code-editor"
                 placeholder={
                   "from playwright.sync_api import sync_playwright\n\n..."
                 }
@@ -681,25 +663,14 @@ export default function TestCases() {
         footer={
           detail ? (
             <div className="flex justify-end gap-2">
-              <Button
-                className="tp-button-ghost"
-                onClick={() => setDetailVisible(false)}
-              >
-                关闭
-              </Button>
-              <Button
-                type="primary"
-                className="btn-ink"
-                icon={<IconEdit />}
-                onClick={editFromDetail}
-              >
+              <Button onClick={() => setDetailVisible(false)}>关闭</Button>
+              <Button type="primary" icon={<IconEdit />} onClick={editFromDetail}>
                 编辑脚本
               </Button>
             </div>
           ) : null
         }
         unmountOnExit
-        className="tp-script-drawer"
       >
         <Spin loading={detailLoading} style={{ width: "100%" }}>
           {detail ? (
@@ -735,12 +706,7 @@ export default function TestCases() {
                       {detail.content?.split("\n").length || 0} lines · UTF-8
                     </p>
                   </div>
-                  <Button
-                    size="mini"
-                    className="tp-button-ghost"
-                    icon={<IconCopy />}
-                    onClick={copyContent}
-                  >
+                  <Button size="mini" icon={<IconCopy />} onClick={copyContent}>
                     复制
                   </Button>
                 </div>

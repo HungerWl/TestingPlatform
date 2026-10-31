@@ -218,12 +218,7 @@ export default function BootScreen({ onFinish, isLeaving }) {
 
       <div className="tp-boot__center">
         {needsInteraction && !videoError && (
-          <Button
-            type="primary"
-            className="btn-acid"
-            icon={<IconArrowRight />}
-            onClick={handleManualPlay}
-          >
+          <Button type="primary" icon={<IconArrowRight />} onClick={handleManualPlay}>
             开始启动序列
           </Button>
         )}

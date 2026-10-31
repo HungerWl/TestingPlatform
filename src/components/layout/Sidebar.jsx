@@ -41,16 +41,7 @@ export default function Sidebar({ collapsed, mobileOpen, onNavigate, onToggleCol
 
     if (node.children?.length) {
       return (
-        <Menu.SubMenu
-          key={node.key}
-          title={
-            <span className="tp-menu-title">
-              <span className="tp-menu-icon">{Icon ? <Icon /> : null}</span>
-              <span className="tp-menu-label">{node.meta.title}</span>
-              <span className="tp-menu-count">{node.children.length}</span>
-            </span>
-          }
-        >
+        <Menu.SubMenu key={node.key} title={node.meta.title}>
           {renderMenuNodes(node.children, renderNode)}
         </Menu.SubMenu>
       );
@@ -58,11 +49,8 @@ export default function Sidebar({ collapsed, mobileOpen, onNavigate, onToggleCol
 
     return (
       <Menu.Item key={node.key}>
-        <span className="tp-menu-title">
-          <span className="tp-menu-icon">{Icon ? <Icon /> : null}</span>
-          <span className="tp-menu-label">{node.meta.title}</span>
-          {node.meta.badge && <span className="tp-menu-badge">{node.meta.badge}</span>}
-        </span>
+        {Icon ? <Icon /> : null}
+        {node.meta.title}
       </Menu.Item>
     );
   };

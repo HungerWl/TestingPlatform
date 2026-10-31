@@ -130,14 +130,14 @@ export default function Header({ collapsed, onToggleCollapse, onOpenMobile }) {
   );
 
   const userMenu = (
-    <Menu className="tp-user-menu" onClickMenuItem={handleUserMenu}>
+    <Menu onClickMenuItem={handleUserMenu}>
       <Menu.Item key="profile">
         <span className="flex items-center gap-2">
           <IconUser /> 个人中心
         </span>
       </Menu.Item>
-      <Menu.Item key="logout" className="tp-user-menu__logout">
-        <span className="flex items-center gap-2 text-[#d84a31]">
+      <Menu.Item key="logout">
+        <span className="flex items-center gap-2">
           <IconPoweroff /> 退出登录
         </span>
       </Menu.Item>
@@ -166,33 +166,25 @@ export default function Header({ collapsed, onToggleCollapse, onOpenMobile }) {
 
         <span className="mx-1 hidden h-5 w-px bg-line sm:block" />
 
-        <Breadcrumb className="tp-breadcrumb hidden min-w-0 sm:block">
-          <Breadcrumb.Item>
-            <Link
-              to="/test-cases"
-              className="tp-breadcrumb__home"
-              aria-label="首页"
-            >
-              <IconHome />
-            </Link>
-          </Breadcrumb.Item>
-          {trail.map((item, index) => {
-            const isLast = index === trail.length - 1;
-            const canNavigate = !isLast && item.component && item.path;
+        <div className="hidden min-w-0 sm:block">
+          <Breadcrumb>
+            <Breadcrumb.Item>
+              <Link to="/test-cases" aria-label="首页">
+                <IconHome />
+              </Link>
+            </Breadcrumb.Item>
+            {trail.map((item, index) => {
+              const isLast = index === trail.length - 1;
+              const canNavigate = !isLast && item.component && item.path;
 
-            return (
-              <Breadcrumb.Item key={`${item.path}-${index}`}>
-                {canNavigate ? (
-                  <Link to={item.path}>{item.meta?.title}</Link>
-                ) : (
-                  <span className={isLast ? "font-medium text-ink" : undefined}>
-                    {item.meta?.title}
-                  </span>
-                )}
-              </Breadcrumb.Item>
-            );
-          })}
-        </Breadcrumb>
+              return (
+                <Breadcrumb.Item key={`${item.path}-${index}`}>
+                  {canNavigate ? <Link to={item.path}>{item.meta?.title}</Link> : item.meta?.title}
+                </Breadcrumb.Item>
+              );
+            })}
+          </Breadcrumb>
+        </div>
 
         <div className="min-w-0 sm:hidden">
           <p className="truncate font-display text-sm font-semibold text-ink">
@@ -234,9 +226,7 @@ export default function Header({ collapsed, onToggleCollapse, onOpenMobile }) {
             className="tp-user-trigger"
             aria-label="用户菜单"
           >
-            <Avatar size={32} className="tp-user-avatar">
-              {user.name.slice(0, 1)}
-            </Avatar>
+            <Avatar size={32}>{user.name.slice(0, 1)}</Avatar>
             <span className="hidden min-w-0 text-left md:block">
               <span className="block truncate text-[12px] font-semibold leading-4 text-ink">
                 {user.name}

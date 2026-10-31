@@ -35,19 +35,10 @@ export default function NotFound() {
           </p>
 
           <div className="mt-7 flex flex-wrap items-center gap-2.5">
-            <Button
-              type="primary"
-              className="btn-acid"
-              icon={<IconHome />}
-              onClick={() => navigate('/profile')}
-            >
+            <Button type="primary" icon={<IconHome />} onClick={() => navigate('/profile')}>
               回到个人中心
             </Button>
-            <Button
-              className="tp-button-ghost-dark"
-              icon={<IconArrowLeft />}
-              onClick={() => navigate(-1)}
-            >
+            <Button icon={<IconArrowLeft />} onClick={() => navigate(-1)}>
               返回上一页
             </Button>
           </div>

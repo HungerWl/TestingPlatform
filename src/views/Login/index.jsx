@@ -214,7 +214,6 @@ export default function Login() {
                 long
                 size="large"
                 loading={submitting}
-                className="btn-acid !h-11"
                 icon={<IconArrowRight />}
               >
                 进入控制台
@@ -229,13 +228,7 @@ export default function Login() {
               <span className="h-px flex-1 bg-line" />
             </div>
 
-            <Button
-              long
-              size="large"
-              className="tp-button-ghost !h-10"
-              icon={<IconThunderbolt />}
-              onClick={fillDemoAccount}
-            >
+            <Button long size="large" icon={<IconThunderbolt />} onClick={fillDemoAccount}>
               填入演示账号
             </Button>
 

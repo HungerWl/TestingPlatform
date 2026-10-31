@@ -2,6 +2,8 @@
 
 基于 **Vite + React 18（JavaScript）+ Arco Design + Tailwind CSS v3 + Axios + react-router-dom v6** 的后台管理系统。
 
+> Arco Design 组件全部使用原生样式：项目中没有任何 `.arco-*` CSS 覆盖、主题变量重写或组件外观二次定制。Tailwind 仅用于页面布局、自定义容器和业务展示元素。
+
 当前侧边栏包含两个业务菜单：
 
 - **测试用例**：对接 TestingService 的真实脚本 CRUD 接口；
