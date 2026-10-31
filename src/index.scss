@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+// =========================================================
+// SCSS breakpoints
+// 使用 Sass 变量统一管理页面响应式断点。
+// =========================================================
+$bp-mobile-sm: 480px;
+$bp-mobile: 639px;
+$bp-tablet-sm: 767px;
+$bp-tablet: 1023px;
+$bp-desktop: 1024px;
+$bp-desktop-sm: 1279px;
+$bp-wide: 1440px;
+
 /* =========================================================
    Design tokens
    ---------------------------------------------------------
@@ -185,12 +197,12 @@ a:focus-visible,
   border-radius: 11px;
   background: var(--tp-acid);
   color: var(--tp-ink);
-}
 
-.brand-mark svg {
-  display: block;
-  width: 100%;
-  height: 100%;
+  svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
 }
 
 /* =========================================================
@@ -223,7 +235,7 @@ a:focus-visible,
   padding: 26px 24px 34px;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: $bp-desktop) {
   .tp-main {
     padding-left: var(--tp-sider);
   }
@@ -232,7 +244,7 @@ a:focus-visible,
   }
 }
 
-@media (min-width: 1440px) {
+@media (min-width: $bp-wide) {
   .tp-content__inner {
     padding: 32px 36px 40px;
   }
@@ -504,7 +516,7 @@ a:focus-visible,
   display: inline-flex;
 }
 
-@media (max-width: 1023px) {
+@media (max-width: $bp-tablet) {
   .tp-header__mobile-toggle {
     display: inline-flex;
   }
@@ -652,7 +664,7 @@ a:focus-visible,
   box-shadow: 0 0 0 3px rgba(63, 156, 93, 0.1);
 }
 
-@media (max-width: 1023px) {
+@media (max-width: $bp-tablet) {
   .tp-sidebar {
     width: min(300px, 86vw);
     transform: translateX(-100%);
@@ -715,7 +727,7 @@ a:focus-visible,
   content: "";
 }
 
-@media (max-width: 767px) {
+@media (max-width: $bp-tablet-sm) {
   .tp-page-header {
     flex-direction: column;
     align-items: flex-start;
@@ -1109,7 +1121,7 @@ a:focus-visible,
   transform: translateY(1px);
 }
 
-@media (max-width: 639px) {
+@media (max-width: $bp-mobile) {
   .tp-boot__sound {
     padding: 0 9px;
   }
@@ -1304,7 +1316,7 @@ a:focus-visible,
   box-shadow: 0 34px 80px -54px rgba(16, 18, 15, 0.58), 5px 5px 0 rgba(16, 18, 15, 0.045);
 }
 
-@media (max-width: 1023px) {
+@media (max-width: $bp-tablet) {
   .tp-login {
     grid-template-columns: 1fr;
   }
@@ -1316,14 +1328,14 @@ a:focus-visible,
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: $bp-mobile-sm) {
   .tp-login-card {
     padding: 20px;
     border-radius: 18px;
   }
 }
 
-@media (max-width: 1279px) {
+@media (max-width: $bp-desktop-sm) {
   .tp-login__orbit {
     display: none;
   }
@@ -1461,13 +1473,13 @@ a:focus-visible,
 /* =========================================================
    Responsive fine-tuning
    ========================================================= */
-@media (max-width: 1023px) {
+@media (max-width: $bp-tablet) {
   .tp-header__sla {
     display: none;
   }
 }
 
-@media (max-width: 639px) {
+@media (max-width: $bp-mobile) {
   .tp-notification-panel {
     width: min(344px, calc(100vw - 24px));
   }

@@ -1,18 +1,25 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from 'react';
 import {
   Button,
+  Card,
+  Descriptions,
+  Divider,
   Drawer,
   Form,
+  Grid,
   Input,
-  InputNumber,
   Message,
-  Modal,
   Popconfirm,
   Select,
+  Space,
   Spin,
+  Statistic,
   Table,
+  Tabs,
+  Tag,
   Tooltip,
-} from "@arco-design/web-react";
+  Typography,
+} from '@arco-design/web-react';
 import {
   IconCopy,
   IconDelete,
@@ -21,89 +28,113 @@ import {
   IconPlus,
   IconRefresh,
   IconSearch,
-} from "@arco-design/web-react/icon";
-import PageHeader from "../../components/common/PageHeader";
+} from '@arco-design/web-react/icon';
+import PageHeader from '../../components/common/PageHeader';
 import {
   createScript,
   deleteScript,
   fetchScriptDetail,
   fetchScripts,
   updateScript,
-} from "../../api/scripts";
-import { formatDateTime } from "../../utils/format";
+} from '../../api/scripts';
+import { formatDateTime } from '../../utils/format';
 
 const SCRIPT_TYPES = [
-  { value: "playwright-python", label: "Playwright · Python", short: "PY" },
-  { value: "playwright-ts", label: "Playwright · TypeScript", short: "TS" },
-  { value: "playwright-js", label: "Playwright · JavaScript", short: "JS" },
+  { value: 'playwright-python', label: 'Playwright · Python', color: 'green' },
+  { value: 'playwright-ts', label: 'Playwright · TypeScript', color: 'arcoblue' },
+  { value: 'playwright-js', label: 'Playwright · JavaScript', color: 'orange' },
 ];
 
 const SCRIPT_TYPE_MAP = Object.fromEntries(
   SCRIPT_TYPES.map((item) => [item.value, item]),
 );
 
+const PRIORITY_OPTIONS = ['P0', 'P1', 'P2', 'P3'].map((value) => ({
+  label: value,
+  value,
+}));
+
+const PRIORITY_COLOR = {
+  P0: 'red',
+  P1: 'orange',
+  P2: 'arcoblue',
+  P3: 'gray',
+};
+
 const INITIAL_QUERY = {
   page: 1,
   pageSize: 10,
-  keyword: "",
-  scriptType: "",
-  caseId: "",
+  keyword: '',
+  scriptType: '',
+  caseId: '',
 };
 
 const INITIAL_FORM = {
-  name: "",
-  script_type: "playwright-python",
-  case_id: null,
-  content: "",
-  remark: "",
+  name: '',
+  system_name: '',
+  case_id: '',
+  priority: undefined,
+  version: '1.0.0',
+  script_type: undefined,
+  precondition: '',
+  test_steps: '',
+  expected_result: '',
+  content: '',
+  remark: '',
 };
 
-function buildQueryParams(query) {
-  const params = {
-    page: query.page,
-    page_size: query.pageSize,
-  };
+const textOrNull = (value) => {
+  if (typeof value !== 'string') return null;
+  return value.trim() ? value : null;
+};
 
-  if (query.keyword.trim()) params.keyword = query.keyword.trim();
-  if (query.scriptType) params.script_type = query.scriptType;
-  if (query.caseId) params.case_id = Number(query.caseId);
-
-  return params;
-}
+const trimmedOrNull = (value) => {
+  if (typeof value !== 'string') return null;
+  return value.trim() || null;
+};
 
 function ScriptTypeTag({ type }) {
-  const item = SCRIPT_TYPE_MAP[type] || { label: type, short: "—" };
-  const key = type?.replace("playwright-", "") || "unknown";
-
-  return (
-    <span className={`tp-script-type is-${key}`}>
-      <i />
-      {item.label}
-      <em>{item.short}</em>
-    </span>
-  );
+  if (!type) return <Typography.Text type="secondary">—</Typography.Text>;
+  const item = SCRIPT_TYPE_MAP[type] || { label: type, color: 'gray' };
+  return <Tag color={item.color}>{item.label}</Tag>;
 }
 
-/**
- * 测试用例（测试脚本）管理页。
- * 对接 TestingService: /api/v1/scripts
- */
+function PriorityTag({ priority }) {
+  if (!priority) return <Typography.Text type="secondary">—</Typography.Text>;
+  return <Tag color={PRIORITY_COLOR[priority] || 'gray'}>{priority}</Tag>;
+}
+
+function getFormValues(script) {
+  return {
+    name: script.name || '',
+    system_name: script.system_name || '',
+    case_id: script.case_id || '',
+    priority: script.priority || undefined,
+    version: script.version || '1.0.0',
+    script_type: script.script_type || undefined,
+    precondition: script.precondition || '',
+    test_steps: script.test_steps || '',
+    expected_result: script.expected_result || '',
+    content: script.content || '',
+    remark: script.remark || '',
+  };
+}
+
 export default function TestCases() {
+  const [filterForm] = Form.useForm();
   const [form] = Form.useForm();
   const [query, setQuery] = useState(INITIAL_QUERY);
-  const [draft, setDraft] = useState({
-    keyword: "",
-    scriptType: "",
-    caseId: "",
-  });
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
+  const [pages, setPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+
   const [modalVisible, setModalVisible] = useState(false);
   const [editing, setEditing] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [busyId, setBusyId] = useState(null);
+
   const [detailVisible, setDetailVisible] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState(null);
@@ -112,16 +143,26 @@ export default function TestCases() {
     let cancelled = false;
     setLoading(true);
 
-    fetchScripts(buildQueryParams(query))
+    const params = {
+      page: query.page,
+      page_size: query.pageSize,
+    };
+    if (query.keyword.trim()) params.keyword = query.keyword.trim();
+    if (query.scriptType) params.script_type = query.scriptType;
+    if (query.caseId.trim()) params.case_id = query.caseId.trim();
+
+    fetchScripts(params)
       .then((result) => {
         if (cancelled) return;
         setRows(result?.items || []);
         setTotal(result?.total || 0);
+        setPages(result?.pages || 0);
       })
       .catch(() => {
         if (cancelled) return;
         setRows([]);
         setTotal(0);
+        setPages(0);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -132,30 +173,28 @@ export default function TestCases() {
     };
   }, [query, refreshKey]);
 
-  const activeFilterCount = useMemo(
-    () =>
-      [query.keyword, query.scriptType, query.caseId].filter(Boolean).length,
-    [query],
+  const currentPagePriorities = useMemo(
+    () => rows.filter((record) => record.priority === 'P0' || record.priority === 'P1').length,
+    [rows],
   );
 
-  const closeModal = () => {
-    if (submitting) return;
-    setModalVisible(false);
-    setEditing(null);
-  };
+  const currentSystems = useMemo(
+    () => new Set(rows.map((record) => record.system_name).filter(Boolean)).size,
+    [rows],
+  );
 
-  const applyFilters = () => {
+  const handleSearch = (values) => {
     setQuery((previous) => ({
       ...previous,
-      keyword: draft.keyword,
-      scriptType: draft.scriptType,
-      caseId: draft.caseId,
       page: 1,
+      keyword: values.keyword?.trim() || '',
+      scriptType: values.script_type || '',
+      caseId: values.case_id?.trim() || '',
     }));
   };
 
-  const resetFilters = () => {
-    setDraft({ keyword: "", scriptType: "", caseId: "" });
+  const handleReset = () => {
+    filterForm.resetFields();
     setQuery({ ...INITIAL_QUERY });
     setRefreshKey((key) => key + 1);
   };
@@ -166,18 +205,11 @@ export default function TestCases() {
     setModalVisible(true);
   };
 
-  const syncFormValues = () => {
-    if (!editing) return;
-    form.setFieldsValue({
-      name: editing.name,
-      script_type: editing.script_type,
-      case_id: editing.case_id,
-      content: editing.content,
-      remark: editing.remark || "",
-    });
+  const applyEditValues = () => {
+    if (editing) form.setFieldsValue(getFormValues(editing));
   };
 
-  const startEdit = async (record) => {
+  const openEdit = async (record) => {
     setBusyId(record.id);
     try {
       const latest = await fetchScriptDetail(record.id);
@@ -190,6 +222,12 @@ export default function TestCases() {
     }
   };
 
+  const closeModal = () => {
+    if (submitting) return;
+    setModalVisible(false);
+    setEditing(null);
+  };
+
   const handleSubmit = async (values) => {
     setSubmitting(true);
     const isEdit = Boolean(editing);
@@ -197,18 +235,26 @@ export default function TestCases() {
     try {
       const payload = {
         name: values.name.trim(),
-        script_type: values.script_type,
-        case_id: values.case_id ? Number(values.case_id) : null,
-        content: values.content,
-        remark: values.remark?.trim() ? values.remark.trim() : null,
+        system_name: values.system_name.trim(),
+        case_id: trimmedOrNull(values.case_id),
+        script_type: values.script_type || null,
+        content: textOrNull(values.content),
+        precondition: textOrNull(values.precondition),
+        test_steps: textOrNull(values.test_steps),
+        expected_result: textOrNull(values.expected_result),
+        priority: trimmedOrNull(values.priority),
+        remark: trimmedOrNull(values.remark),
       };
+
+      const version = trimmedOrNull(values.version);
+      if (version) payload.version = version;
 
       if (isEdit) {
         const updated = await updateScript(editing.id, payload);
-        Message.success(`脚本已更新至 v${updated.version}`);
+        Message.success(`保存成功，当前 revision 为 ${updated.revision}`);
       } else {
-        const created = await createScript(payload);
-        Message.success(`测试用例 #${created.id} 创建成功`);
+        await createScript(payload);
+        Message.success('测试用例创建成功');
       }
 
       setModalVisible(false);
@@ -220,7 +266,7 @@ export default function TestCases() {
       }));
       setRefreshKey((key) => key + 1);
     } catch {
-      // 错误提示已在 request.js 中统一处理。
+      // request.js 已统一提示错误。
     } finally {
       setSubmitting(false);
     }
@@ -229,13 +275,12 @@ export default function TestCases() {
   const handleDelete = async (record) => {
     try {
       await deleteScript(record.id);
-      Message.success(`测试用例 #${record.id} 已删除`);
-      const nextPage =
-        rows.length === 1 && query.page > 1 ? query.page - 1 : query.page;
+      Message.success('测试用例已删除');
+      const nextPage = rows.length === 1 && query.page > 1 ? query.page - 1 : query.page;
       setQuery((previous) => ({ ...previous, page: nextPage }));
       setRefreshKey((key) => key + 1);
     } catch {
-      // 错误提示已在 request.js 中统一处理。
+      // request.js 已统一提示错误。
     }
   };
 
@@ -244,8 +289,7 @@ export default function TestCases() {
     setDetailVisible(true);
     setDetailLoading(true);
     try {
-      const data = await fetchScriptDetail(record.id);
-      setDetail(data);
+      setDetail(await fetchScriptDetail(record.id));
     } catch {
       setDetailVisible(false);
     } finally {
@@ -260,88 +304,74 @@ export default function TestCases() {
     setModalVisible(true);
   };
 
-  const copyContent = async () => {
+  const copySource = async () => {
     if (!detail?.content) return;
     try {
       await navigator.clipboard.writeText(detail.content);
-      Message.success("脚本内容已复制");
+      Message.success('脚本源码已复制');
     } catch {
-      Message.error("复制失败，请手动选择内容");
+      Message.error('复制失败，请手动选择内容');
     }
   };
 
   const columns = [
     {
-      title: "ID",
-      dataIndex: "id",
-      width: 68,
-      render: (value) => (
-        <span className="font-mono text-[10px] font-medium text-ink-muted">
-          #{value}
-        </span>
-      ),
-    },
-    {
-      title: "用例名称",
-      dataIndex: "name",
-      width: 270,
+      title: '用例名称',
+      dataIndex: 'name',
+      width: 260,
       render: (value, record) => (
-        <button
-          type="button"
-          className="tp-script-name"
-          onClick={() => openDetail(record)}
-        >
-          <span className="truncate">{value}</span>
-          <small>
-            {record.remark ||
-              record.content?.split("\n")[0]?.slice(0, 56) ||
-              "暂无备注"}
-          </small>
-        </button>
+        <Space direction="vertical" size={0}>
+          <Typography.Text>{value}</Typography.Text>
+          <Typography.Text type="secondary">
+            {record.case_id || '未关联业务编号'}
+          </Typography.Text>
+        </Space>
       ),
     },
     {
-      title: "脚本类型",
-      dataIndex: "script_type",
+      title: '所属系统',
+      dataIndex: 'system_name',
+      width: 130,
+      render: (value) => <Tag>{value}</Tag>,
+    },
+    {
+      title: '脚本类型',
+      dataIndex: 'script_type',
       width: 180,
       render: (value) => <ScriptTypeTag type={value} />,
     },
     {
-      title: "关联用例",
-      dataIndex: "case_id",
-      width: 94,
-      render: (value) =>
-        value ? (
-          <span className="font-mono text-[10px] text-ink-muted">
-            CASE-{value}
-          </span>
-        ) : (
-          <span className="text-[11px] text-muted">—</span>
-        ),
+      title: '优先级',
+      dataIndex: 'priority',
+      width: 92,
+      render: (value) => <PriorityTag priority={value} />,
     },
     {
-      title: "版本",
-      dataIndex: "version",
-      width: 76,
-      render: (value) => <span className="tp-version">v{value}</span>,
-    },
-    {
-      title: "创建时间",
-      dataIndex: "created_at",
-      width: 150,
-      render: (value) => (
-        <span className="font-mono text-[10px] text-muted">
-          {formatDateTime(value)}
-        </span>
+      title: '版本 / 修订',
+      dataIndex: 'version',
+      width: 140,
+      render: (value, record) => (
+        <Space size={6}>
+          <Typography.Text>{value}</Typography.Text>
+          <Typography.Text type="secondary">rev.{record.revision}</Typography.Text>
+        </Space>
       ),
     },
     {
-      title: "操作",
-      dataIndex: "action",
-      width: 112,
-      fixed: "right",
+      title: '创建时间',
+      dataIndex: 'created_at',
+      width: 168,
+      render: (value) => (
+        <Typography.Text type="secondary">{formatDateTime(value)}</Typography.Text>
+      ),
+    },
+    {
+      title: '操作',
+      dataIndex: 'action',
+      width: 118,
+      fixed: 'right',
       render: (_, record) => (
-        <div className="flex items-center gap-0.5">
+        <Space size={0}>
           <Tooltip content="查看详情">
             <Button
               type="text"
@@ -351,20 +381,20 @@ export default function TestCases() {
               aria-label={`查看 ${record.name}`}
             />
           </Tooltip>
-          <Tooltip content="编辑并递增版本">
+          <Tooltip content="编辑">
             <Button
               type="text"
               size="mini"
               icon={<IconEdit />}
               loading={busyId === record.id}
-              onClick={() => startEdit(record)}
+              onClick={() => openEdit(record)}
               aria-label={`编辑 ${record.name}`}
             />
           </Tooltip>
           <Popconfirm
             title="删除这个测试用例？"
-            content={`脚本 #${record.id} 删除后不可恢复。`}
-            okText="确认删除"
+            content="删除后不可恢复。"
+            okText="删除"
             cancelText="取消"
             onOk={() => handleDelete(record)}
           >
@@ -378,353 +408,376 @@ export default function TestCases() {
               />
             </Tooltip>
           </Popconfirm>
-        </div>
+        </Space>
       ),
     },
   ];
 
+  const statistics = [
+    { title: '总用例', value: total, suffix: '条' },
+    { title: '本页记录', value: rows.length, suffix: '条' },
+    { title: '本页高优', value: currentPagePriorities, suffix: '条' },
+    { title: '本页系统数', value: currentSystems, suffix: '个' },
+  ];
+
   return (
-    <div className="tp-page space-y-5">
+    <div className="tp-page space-y-4">
       <PageHeader
         eyebrow="TEST LIBRARY / 01"
-        meta={`TOTAL ${total} SCRIPTS`}
+        meta={`TOTAL ${total} SCRIPTS · PAGE ${query.page}/${pages || 1}`}
         title="测试用例"
-        description="统一管理 Playwright 测试脚本。每次编辑会自动递增版本号，便于追踪脚本演进。"
+        description="管理 Playwright 测试脚本、测试步骤和版本信息。每次修改由服务端自动递增 revision。"
         actions={
-          <>
-            <Button icon={<IconRefresh />} onClick={() => setRefreshKey((key) => key + 1)}>
+          <Space>
+            <Button
+              icon={<IconRefresh />}
+              onClick={() => setRefreshKey((key) => key + 1)}
+            >
               刷新
             </Button>
             <Button type="primary" icon={<IconPlus />} onClick={openCreate}>
               新增测试用例
             </Button>
-          </>
+          </Space>
         }
       />
 
-      <div className="tp-panel p-4 sm:p-5">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
-            <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1.5fr)_190px_150px]">
-              <label className="tp-field">
-                <span className="tp-field__label">名称关键字</span>
+      <Grid.Row gutter={16}>
+        {statistics.map((item) => (
+          <Grid.Col key={item.title} xs={24} sm={12} xl={6}>
+            <Card>
+              <Statistic title={item.title} value={item.value} suffix={item.suffix} />
+            </Card>
+          </Grid.Col>
+        ))}
+      </Grid.Row>
+
+      <Card title="筛选条件">
+        <Form
+          form={filterForm}
+          layout="vertical"
+          initialValues={{ keyword: '', script_type: undefined, case_id: '' }}
+          onSubmit={handleSearch}
+        >
+          <Grid.Row gutter={16}>
+            <Grid.Col xs={24} md={8}>
+              <Form.Item label="名称关键字" field="keyword">
                 <Input
                   allowClear
                   prefix={<IconSearch />}
                   placeholder="搜索测试用例名称"
-                  value={draft.keyword}
-                  onChange={(value) =>
-                    setDraft((previous) => ({ ...previous, keyword: value }))
-                  }
-                  onPressEnter={applyFilters}
+                  onPressEnter={() => filterForm.submit()}
                 />
-              </label>
-
-              <label className="tp-field">
-                <span className="tp-field__label">脚本类型</span>
+              </Form.Item>
+            </Grid.Col>
+            <Grid.Col xs={24} md={8}>
+              <Form.Item label="脚本类型" field="script_type">
                 <Select
                   allowClear
                   placeholder="全部类型"
                   options={SCRIPT_TYPES}
-                  value={draft.scriptType || undefined}
-                  onChange={(value) =>
-                    setDraft((previous) => ({
-                      ...previous,
-                      scriptType: value || "",
-                    }))
-                  }
                 />
-              </label>
-
-              <label className="tp-field">
-                <span className="tp-field__label">关联用例 ID</span>
-                <InputNumber
-                  min={1}
-                  placeholder="例如 1"
-                  style={{ width: "100%" }}
-                  value={draft.caseId || undefined}
-                  onChange={(value) =>
-                    setDraft((previous) => ({
-                      ...previous,
-                      caseId: value || "",
-                    }))
-                  }
+              </Form.Item>
+            </Grid.Col>
+            <Grid.Col xs={24} md={8}>
+              <Form.Item label="业务编号" field="case_id">
+                <Input
+                  allowClear
+                  placeholder="例如 DAS-20261026-002"
+                  onPressEnter={() => filterForm.submit()}
                 />
-              </label>
-            </div>
+              </Form.Item>
+            </Grid.Col>
+          </Grid.Row>
+          <Space>
+            <Button htmlType="submit" type="primary" icon={<IconSearch />}>
+              查询
+            </Button>
+            <Button onClick={handleReset}>重置</Button>
+          </Space>
+        </Form>
+      </Card>
 
-            <div className="flex items-center gap-2">
-              <Button type="primary" icon={<IconSearch />} onClick={applyFilters}>
-                查询
-              </Button>
-              <Button onClick={resetFilters}>重置</Button>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line/70 pt-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted">
-                Active filters
-              </span>
-              <span className="tp-filter-count">{activeFilterCount}</span>
-              {query.keyword && (
-                <span className="tp-chip tp-chip--muted">
-                  “{query.keyword}”
-                </span>
-              )}
-              {query.scriptType && (
-                <span className="tp-chip tp-chip--muted">
-                  {SCRIPT_TYPE_MAP[query.scriptType]?.label}
-                </span>
-              )}
-              {query.caseId && (
-                <span className="tp-chip tp-chip--muted">
-                  CASE-{query.caseId}
-                </span>
-              )}
-            </div>
-            <span className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted">
-              {total} assets / page {query.page}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div className="tp-panel p-4 sm:p-5">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <span className="font-mono text-[10px] text-muted">01</span>
-              <h2 className="font-display text-[15px] font-semibold tracking-[-0.01em] text-ink">
-                脚本清单
-              </h2>
-            </div>
-            <p className="mt-1 text-xs leading-5 text-muted">
-              数据来自 TestingService，点击用例名称可查看源码详情。
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="tp-live-chip">
-              <i />
-              API /api/v1/scripts
-            </span>
-            <span className="tp-chip">TOTAL {total}</span>
-          </div>
-        </div>
-
-        <div className="mt-4">
-          <Table
-            rowKey="id"
-            columns={columns}
-            data={rows}
-            loading={loading}
-            border={false}
-            scroll={{ x: 1050 }}
-            pagination={{
-              current: query.page,
-              pageSize: query.pageSize,
-              total,
-              showTotal: true,
-              showJumper: true,
-              sizeCanChange: true,
-              sizeOptions: [10, 20, 50],
-              onChange: (page, pageSize) =>
-                setQuery((previous) => ({ ...previous, page, pageSize })),
-            }}
-          />
-        </div>
-      </div>
-
-      <Modal
-        title={
-          <div className="pb-1">
-            <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted">
-              {editing ? "EDIT TEST SCRIPT" : "NEW TEST SCRIPT"}
-            </p>
-            <p className="mt-1.5 font-display text-lg font-semibold text-ink">
-              {editing ? `编辑测试用例 #${editing.id}` : "新增测试用例"}
-            </p>
-          </div>
+      <Card
+        title="用例列表"
+        extra={
+          <Space>
+            <Typography.Text type="secondary">共 {total} 条</Typography.Text>
+            <Button
+              size="small"
+              icon={<IconRefresh />}
+              onClick={() => setRefreshKey((key) => key + 1)}
+            >
+              刷新
+            </Button>
+          </Space>
         }
+      >
+        <Table
+          rowKey="id"
+          columns={columns}
+          data={rows}
+          loading={loading}
+          scroll={{ x: 1100 }}
+          pagination={{
+            current: query.page,
+            pageSize: query.pageSize,
+            total,
+            showTotal: true,
+            showJumper: true,
+            sizeCanChange: true,
+            sizeOptions: [10, 20, 50],
+            onChange: (page, pageSize) =>
+              setQuery((previous) => ({ ...previous, page, pageSize })),
+          }}
+        />
+      </Card>
+
+      <Drawer
+        title={editing ? '编辑测试用例' : '新增测试用例'}
         visible={modalVisible}
         onOk={() => form.submit()}
         onCancel={closeModal}
         confirmLoading={submitting}
-        okText={editing ? "保存并递增版本" : "创建测试用例"}
+        okText={editing ? '保存修改' : '创建'}
         cancelText="取消"
+        width="min(880px, 100vw)"
         unmountOnExit
-        autoFocus={false}
         focusLock
-        afterOpen={syncFormValues}
+        afterOpen={applyEditValues}
         afterClose={() => form.resetFields()}
-        style={{ width: 760, maxWidth: "calc(100vw - 32px)" }}
       >
         <Form
           form={form}
           layout="vertical"
           initialValues={INITIAL_FORM}
           onSubmit={handleSubmit}
-          className="pt-2"
         >
-          <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
-            <Form.Item
-              label="用例名称"
-              field="name"
-              rules={[
-                { required: true, message: "请输入用例名称" },
-                { maxLength: 128, message: "名称最多 128 个字符" },
-              ]}
-              className="sm:col-span-2"
-            >
-              <Input
-                placeholder="例如：支付中心登录回归脚本"
-                maxLength={128}
-                showWordLimit
-              />
-            </Form.Item>
+          <Divider orientation="left">基本信息</Divider>
+          <Grid.Row gutter={16}>
+            <Grid.Col xs={24} md={12}>
+              <Form.Item
+                label="用例名称"
+                field="name"
+                rules={[
+                  { required: true, message: '请输入用例名称' },
+                  { maxLength: 128, message: '最多 128 个字符' },
+                ]}
+              >
+                <Input placeholder="例如：登录流程冒烟测试" maxLength={128} showWordLimit />
+              </Form.Item>
+            </Grid.Col>
+            <Grid.Col xs={24} md={12}>
+              <Form.Item
+                label="所属系统"
+                field="system_name"
+                rules={[
+                  { required: true, message: '请输入所属系统' },
+                  { maxLength: 128, message: '最多 128 个字符' },
+                ]}
+              >
+                <Input placeholder="例如：订单系统" maxLength={128} showWordLimit />
+              </Form.Item>
+            </Grid.Col>
+            <Grid.Col xs={24} md={12}>
+              <Form.Item label="业务编号" field="case_id">
+                <Input placeholder="例如：DAS-20261026-002" maxLength={64} />
+              </Form.Item>
+            </Grid.Col>
+            <Grid.Col xs={24} md={12}>
+              <Form.Item label="优先级" field="priority">
+                <Select allowClear placeholder="选择优先级" options={PRIORITY_OPTIONS} />
+              </Form.Item>
+            </Grid.Col>
+            <Grid.Col xs={24} md={12}>
+              <Form.Item
+                label="业务版本号"
+                field="version"
+                rules={[{ maxLength: 64, message: '最多 64 个字符' }]}
+              >
+                <Input placeholder="1.0.0" maxLength={64} />
+              </Form.Item>
+            </Grid.Col>
+            <Grid.Col xs={24} md={12}>
+              <Form.Item label="脚本类型" field="script_type">
+                <Select allowClear placeholder="不指定脚本类型" options={SCRIPT_TYPES} />
+              </Form.Item>
+            </Grid.Col>
+          </Grid.Row>
 
-            <Form.Item
-              label="脚本类型"
-              field="script_type"
-              rules={[{ required: true, message: "请选择脚本类型" }]}
-            >
-              <Select
-                options={SCRIPT_TYPES}
-                placeholder="选择 Playwright 技术栈"
-              />
-            </Form.Item>
+          <Divider orientation="left">测试信息</Divider>
+          <Grid.Row gutter={16}>
+            <Grid.Col xs={24} md={12}>
+              <Form.Item label="前置条件" field="precondition">
+                <Input.TextArea
+                  placeholder="填写执行脚本前需要满足的条件"
+                  autoSize={{ minRows: 3, maxRows: 6 }}
+                />
+              </Form.Item>
+            </Grid.Col>
+            <Grid.Col xs={24} md={12}>
+              <Form.Item label="预期结果" field="expected_result">
+                <Input.TextArea
+                  placeholder="填写期望的测试结果"
+                  autoSize={{ minRows: 3, maxRows: 6 }}
+                />
+              </Form.Item>
+            </Grid.Col>
+            <Grid.Col xs={24}>
+              <Form.Item label="测试步骤" field="test_steps">
+                <Input.TextArea
+                  placeholder="按顺序填写测试步骤"
+                  autoSize={{ minRows: 3, maxRows: 8 }}
+                />
+              </Form.Item>
+            </Grid.Col>
+          </Grid.Row>
 
-            <Form.Item
-              label="关联用例 ID"
-              field="case_id"
-              extra="可选，关联现有测试用例的 ID。"
-            >
-              <InputNumber
-                min={1}
-                placeholder="例如 1"
-                style={{ width: "100%" }}
-              />
-            </Form.Item>
-
-            <Form.Item
-              label="脚本源码"
-              field="content"
-              rules={[
-                { required: true, message: "请输入脚本源码" },
-                {
-                  validator: (value, callback) => {
-                    if (!value || !value.trim()) callback("脚本内容不能为空");
-                    else callback();
-                  },
-                },
-              ]}
-              className="sm:col-span-2"
-            >
-              <Input.TextArea
-                placeholder={
-                  "from playwright.sync_api import sync_playwright\n\n..."
-                }
-                autoSize={{ minRows: 10, maxRows: 16 }}
-                spellCheck={false}
-              />
-            </Form.Item>
-
-            <Form.Item
-              label="备注"
-              field="remark"
-              rules={[{ maxLength: 500, message: "备注最多 500 个字符" }]}
-              className="sm:col-span-2"
-            >
-              <Input.TextArea
-                placeholder="补充脚本用途、依赖或维护说明…"
-                autoSize={{ minRows: 2, maxRows: 4 }}
-                maxLength={500}
-                showWordLimit
-              />
-            </Form.Item>
-          </div>
+          <Divider orientation="left">脚本与备注</Divider>
+          <Grid.Row gutter={16}>
+            <Grid.Col xs={24}>
+              <Form.Item label="脚本源码" field="content">
+                <Input.TextArea
+                  placeholder="可选，填写 Playwright 脚本源码"
+                  autoSize={{ minRows: 5, maxRows: 10 }}
+                  spellCheck={false}
+                />
+              </Form.Item>
+            </Grid.Col>
+            <Grid.Col xs={24}>
+              <Form.Item
+                label="备注"
+                field="remark"
+                rules={[{ maxLength: 500, message: '最多 500 个字符' }]}
+              >
+                <Input.TextArea
+                  placeholder="补充维护说明"
+                  autoSize={{ minRows: 2, maxRows: 4 }}
+                  maxLength={500}
+                  showWordLimit
+                />
+              </Form.Item>
+            </Grid.Col>
+          </Grid.Row>
         </Form>
-      </Modal>
+      </Drawer>
 
       <Drawer
-        title={
-          <div className="py-0.5">
-            <p className="font-mono text-[9px] uppercase tracking-[0.2em] text-muted">
-              TEST SCRIPT / DETAIL
-            </p>
-            <p className="mt-1.5 font-display text-lg font-semibold text-ink">
-              {detail ? `测试用例 #${detail.id}` : "加载脚本详情"}
-            </p>
-          </div>
-        }
+        title="测试用例详情"
         visible={detailVisible}
         onCancel={() => setDetailVisible(false)}
-        width="min(640px, 100vw)"
+        width="min(760px, 100vw)"
         footer={
           detail ? (
-            <div className="flex justify-end gap-2">
+            <Space>
               <Button onClick={() => setDetailVisible(false)}>关闭</Button>
               <Button type="primary" icon={<IconEdit />} onClick={editFromDetail}>
-                编辑脚本
+                编辑
               </Button>
-            </div>
+            </Space>
           ) : null
         }
-        unmountOnExit
       >
-        <Spin loading={detailLoading} style={{ width: "100%" }}>
+        <Spin loading={detailLoading} style={{ width: '100%' }}>
           {detail ? (
-            <div className="space-y-5">
-              <div>
-                <p className="font-display text-xl font-semibold tracking-[-0.03em] text-ink">
-                  {detail.name}
-                </p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <ScriptTypeTag type={detail.script_type} />
-                  <span className="tp-version">v{detail.version}</span>
-                  {detail.case_id && (
-                    <span className="tp-chip">CASE-{detail.case_id}</span>
-                  )}
-                  <span className="tp-chip tp-chip--muted">
-                    {formatDateTime(detail.created_at)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-line/80 bg-paper/70 p-4">
-                <p className="eyebrow">Remark</p>
-                <p className="mt-2 text-[12px] leading-6 text-ink-muted">
-                  {detail.remark || "暂无备注"}
-                </p>
-              </div>
-
-              <div>
-                <div className="mb-2 flex items-center justify-between gap-3">
+            <Tabs>
+              <Tabs.TabPane key="overview" title="概览">
+                <Space direction="vertical" size="large" style={{ width: '100%' }}>
                   <div>
-                    <p className="eyebrow">Source code</p>
-                    <p className="mt-1 font-mono text-[9px] uppercase tracking-[0.12em] text-muted">
-                      {detail.content?.split("\n").length || 0} lines · UTF-8
-                    </p>
+                    <Typography.Title heading={5}>{detail.name}</Typography.Title>
+                    <Space wrap>
+                      <Tag>{detail.system_name}</Tag>
+                      <ScriptTypeTag type={detail.script_type} />
+                      <PriorityTag priority={detail.priority} />
+                      <Tag color="purple">v{detail.version}</Tag>
+                      <Typography.Text type="secondary">
+                        revision {detail.revision}
+                      </Typography.Text>
+                    </Space>
                   </div>
-                  <Button size="mini" icon={<IconCopy />} onClick={copyContent}>
-                    复制
-                  </Button>
-                </div>
-                <pre className="tp-code-preview">{detail.content}</pre>
-              </div>
+                  <Descriptions
+                    column={{ xs: 1, sm: 2 }}
+                    border
+                    data={[
+                      { label: '业务编号', value: detail.case_id || '—' },
+                      { label: '所属系统', value: detail.system_name },
+                      { label: '优先级', value: <PriorityTag priority={detail.priority} /> },
+                      { label: '脚本类型', value: <ScriptTypeTag type={detail.script_type} /> },
+                      { label: '业务版本号', value: detail.version },
+                      { label: '技术修订号', value: `revision ${detail.revision}` },
+                      {
+                        label: '创建时间',
+                        value: formatDateTime(detail.created_at),
+                        span: 2,
+                      },
+                    ]}
+                  />
+                  <div className="space-y-2">
+                    <Typography.Text type="secondary">备注</Typography.Text>
+                    <Input.TextArea
+                      value={detail.remark || ''}
+                      placeholder="暂无备注"
+                      readOnly
+                      autoSize={{ minRows: 2, maxRows: 5 }}
+                    />
+                  </div>
+                </Space>
+              </Tabs.TabPane>
 
-              <div className="flex items-center justify-between border-t border-line/80 pt-3 font-mono text-[9px] uppercase tracking-[0.12em] text-muted">
-                <span>SCRIPT_ID · {detail.id}</span>
-                <span>ENDPOINT · /api/v1/scripts/{detail.id}</span>
-              </div>
-            </div>
-          ) : (
-            !detailLoading && (
-              <div className="py-20 text-center text-xs text-muted">
-                暂无详情
-              </div>
-            )
-          )}
+              <Tabs.TabPane key="test" title="测试信息">
+                <Space direction="vertical" size="large" style={{ width: '100%' }}>
+                  <div className="space-y-2">
+                    <Typography.Text type="secondary">前置条件</Typography.Text>
+                    <Input.TextArea
+                      value={detail.precondition || ''}
+                      placeholder="暂无前置条件"
+                      readOnly
+                      autoSize={{ minRows: 3, maxRows: 8 }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Typography.Text type="secondary">测试步骤</Typography.Text>
+                    <Input.TextArea
+                      value={detail.test_steps || ''}
+                      placeholder="暂无测试步骤"
+                      readOnly
+                      autoSize={{ minRows: 4, maxRows: 12 }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Typography.Text type="secondary">预期结果</Typography.Text>
+                    <Input.TextArea
+                      value={detail.expected_result || ''}
+                      placeholder="暂无预期结果"
+                      readOnly
+                      autoSize={{ minRows: 3, maxRows: 8 }}
+                    />
+                  </div>
+                </Space>
+              </Tabs.TabPane>
+
+              <Tabs.TabPane key="code" title="脚本源码">
+                <Space direction="vertical" size="medium" style={{ width: '100%' }}>
+                  <Space>
+                    <Button
+                      icon={<IconCopy />}
+                      onClick={copySource}
+                      disabled={!detail.content}
+                    >
+                      复制源码
+                    </Button>
+                  </Space>
+                  <Input.TextArea
+                    value={detail.content || ''}
+                    placeholder="暂无脚本源码"
+                    readOnly
+                    autoSize={{ minRows: 12, maxRows: 24 }}
+                    spellCheck={false}
+                  />
+                </Space>
+              </Tabs.TabPane>
+            </Tabs>
+          ) : null}
         </Spin>
       </Drawer>
     </div>

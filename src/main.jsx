@@ -5,7 +5,7 @@ import '@fontsource-variable/sora';
 import '@fontsource-variable/ibm-plex-sans';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
-import './index.css';
+import './index.scss';
 import App from './App';
 import { ensureDemoToken } from './utils/auth';
 

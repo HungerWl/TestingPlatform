@@ -1,12 +1,14 @@
 # Testing Platform
 
-基于 **Vite + React 18（JavaScript）+ Arco Design + Tailwind CSS v3 + Axios + react-router-dom v6** 的后台管理系统。
+基于 **Vite + React 18（JavaScript）+ Arco Design + Tailwind CSS v3 + SCSS + Axios + react-router-dom v6** 的后台管理系统。
 
-> Arco Design 组件全部使用原生样式：项目中没有任何 `.arco-*` CSS 覆盖、主题变量重写或组件外观二次定制。Tailwind 仅用于页面布局、自定义容器和业务展示元素。
+> Arco Design 组件全部使用原生样式：项目中没有任何 `.arco-*` CSS 覆盖、主题变量重写或组件外观二次定制。Tailwind 与 SCSS 仅用于页面布局、自定义容器和业务展示元素。
+>
+> 样式入口为 [src/index.scss](src/index.scss)，通过 Sass 编译；响应式断点使用 SCSS 变量统一管理，并使用原生嵌套组织品牌样式。
 
 当前侧边栏包含两个业务菜单：
 
-- **测试用例**：对接 TestingService 的真实脚本 CRUD 接口；
+- **测试用例**：对接 TestingService 的最新脚本 CRUD 接口，使用 Arco 原生组件构建干净的列表、筛选、表单和详情体验；
 - **个人中心**：账号资料、安全设置与通知偏好。
 
 登录页为隐藏的全屏路由，不占用侧边栏。
@@ -53,7 +55,7 @@ npm run preview
 | `GET` | `/api/v1/scripts` | 分页查询、关键字/类型/用例 ID 筛选 |
 | `GET` | `/api/v1/scripts/{script_id}` | 查看脚本详情、编辑前拉取最新数据 |
 | `POST` | `/api/v1/scripts` | 新增测试用例 |
-| `PUT` | `/api/v1/scripts/{script_id}` | 修改脚本并自动递增版本 |
+| `PUT` | `/api/v1/scripts/{script_id}` | 修改脚本，`revision` 自动 +1 |
 | `DELETE` | `/api/v1/scripts/{script_id}` | 删除测试用例 |
 
 列表查询参数：
@@ -75,25 +77,32 @@ playwright-js
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
 | `name` | 是 | 用例名称，最长 128 字符 |
-| `script_type` | 是 | Playwright 脚本类型 |
-| `content` | 是 | 脚本源码，不能为纯空白 |
-| `case_id` | 否 | 关联测试用例 ID |
+| `system_name` | 是 | 所属系统，最长 128 字符 |
+| `case_id` | 否 | 业务编号，最长 64 字符 |
+| `priority` | 否 | 优先级，例如 P0/P1/P2/P3 |
+| `version` | 否 | 业务版本号，默认 `1.0.0` |
+| `script_type` | 否 | Playwright 脚本类型，可清空 |
+| `precondition` | 否 | 前置条件 |
+| `test_steps` | 否 | 测试步骤 |
+| `expected_result` | 否 | 预期结果 |
+| `content` | 否 | 脚本源码，可清空 |
 | `remark` | 否 | 备注，最长 500 字符 |
 
-新增表单：
+新增测试用例表单：
 
-![新增测试用例](docs/preview-test-case-modal.png)
+![新增测试用例](docs/preview-test-case-form.png)
 
-源码详情抽屉：
+用例详情抽屉：
 
 ![脚本详情](docs/preview-test-case-detail.png)
 
 ### 交互说明
 
 - 回车或点击「查询」应用筛选条件；
-- 支持按名称关键字、脚本类型、关联用例 ID 过滤；
-- 点击用例名称打开源码详情抽屉；
-- 编辑时先调用详情接口获取最新内容，保存后版本号自动 +1；
+- 支持按名称关键字、脚本类型、业务编号过滤；
+- 表格不展示技术 UUID，只展示用例名称、所属系统、脚本类型、优先级、业务版本与技术修订号；
+- 点击「查看」打开详情抽屉，按「概览 / 测试信息 / 脚本源码」分栏浏览；
+- 编辑时先调用详情接口获取最新数据；每次保存由服务端把 `revision` 加 1，`version` 由用户维护；
 - 删除前使用 Popconfirm 二次确认；
 - 所有错误由 `request.js` 统一解析后端 `{ code, msg, data }` 响应并提示；
 - 列表接口返回后按 `items / total / page / page_size / pages` 渲染分页。
@@ -188,7 +197,7 @@ TestingPlatform/
 │   │   ├── Profile/index.jsx
 │   │   └── TestCases/index.jsx
 │   ├── App.jsx
-│   ├── index.css
+│   ├── index.scss
 │   └── main.jsx
 ├── .env.example
 ├── index.html
@@ -206,3 +215,10 @@ VITE_API_PROXY_TARGET=http://127.0.0.1:8000
 ```
 
 如果前端与后端分域部署，把 `VITE_API_BASE_URL` 改为真实接口地址，并确保后端 CORS 已配置。
+
+## 样式系统
+
+- **Arco Design**：全部使用组件库原生样式，没有 `.arco-*` 覆盖、主题变量重写或组件外观 CSS。
+- **SCSS**：样式入口为 `src/index.scss`，由 Vite 内置的 Sass 支持编译；响应式断点使用 SCSS 变量统一管理，自定义品牌样式使用 SCSS 嵌套。
+- **Tailwind CSS v3**：用于页面布局、间距、响应式网格和自定义容器。
+- 自定义视觉只作用于页面壳、业务容器、品牌图形和源码预览等非 Arco 元素。
