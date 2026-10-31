@@ -1,20 +1,35 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
-// 纯前端演示项目：无需配置后端代理。
-// 如果未来接入真实服务，只需在这里增加 server.proxy，并把下方环境变量切换为真实地址。
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    port: 5173,
-    open: false,
-    watch: {
-      // 编辑器的临时文件目录会触发反复的 watcher 重建，直接忽略。
-      ignored: ['**/*.tmpdir/**', '**/.*.tmpdir/**', '**/.screenshots/**'],
+// 本地开发 / 预览时把 /api 转发到 TestingService，避免跨域并支持任意前端端口。
+// 生产部署可通过 VITE_API_BASE_URL 指向真实接口地址。
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const apiTarget = env.VITE_API_PROXY_TARGET || 'http://127.0.0.1:8000';
+  const proxy = {
+    '/api': {
+      target: apiTarget,
+      changeOrigin: true,
     },
-  },
-  build: {
-    outDir: 'dist',
-    sourcemap: false,
-  },
+  };
+
+  return {
+    plugins: [react()],
+    server: {
+      port: 5173,
+      open: false,
+      proxy,
+      watch: {
+        // 编辑器的临时文件目录会触发反复的 watcher 重建，直接忽略。
+        ignored: ['**/*.tmpdir/**', '**/.*.tmpdir/**', '**/.screenshots/**'],
+      },
+    },
+    preview: {
+      proxy,
+    },
+    build: {
+      outDir: 'dist',
+      sourcemap: false,
+    },
+  };
 });

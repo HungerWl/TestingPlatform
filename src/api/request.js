@@ -6,18 +6,19 @@ import { clearToken, getToken } from '../utils/auth';
  * Axios 统一封装
  * ------------------------------------------------------------------
  * 1. 请求拦截：自动注入 Authorization token、X-Request-Id。
- * 2. 响应拦截：统一解包 { code, data, message }，并统一错误提示。
+ * 2. 响应拦截：统一解包后端 { code, msg, data } 结构，并统一错误提示。
  *
- * 当前保留此基础层，后续新增业务模块时直接在 api/ 下增加接口文件即可。
+ * 本地开发默认通过 Vite 代理访问 http://127.0.0.1:8000/api/v1。
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 const request = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
+    Accept: 'application/json',
   },
 });
 
@@ -49,9 +50,11 @@ request.interceptors.response.use(
         return data.data;
       }
 
-      const businessError = new Error(data.message || '请求失败，请稍后重试');
+      const errorMessage = data.msg || data.message || '请求失败，请稍后重试';
+      const businessError = new Error(errorMessage);
       businessError.code = data.code;
       businessError.config = config;
+      businessError.data = data.data;
 
       if (data.code === 401) {
         clearToken();
@@ -59,7 +62,7 @@ request.interceptors.response.use(
           Message.warning('登录状态已失效，请重新登录');
         }
       } else if (!config?.silent) {
-        Message.error(data.message || '请求失败，请稍后重试');
+        Message.error(errorMessage);
       }
 
       return Promise.reject(businessError);
@@ -70,7 +73,18 @@ request.interceptors.response.use(
   (error) => {
     const config = error.config || {};
     const status = error.response?.status;
-    const serverMessage = error.response?.data?.message;
+    const payload = error.response?.data;
+    const serverMessage = payload?.msg || payload?.message;
+    const validationDetails = Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload?.detail)
+        ? payload.detail
+        : [];
+    const validationText = validationDetails
+      .map((item) => item?.message || item?.msg)
+      .filter(Boolean)
+      .slice(0, 3)
+      .join('；');
 
     const statusMessageMap = {
       400: '请求参数有误',
@@ -85,6 +99,10 @@ request.interceptors.response.use(
     };
 
     let message = serverMessage || statusMessageMap[status];
+
+    if (validationText) {
+      message = serverMessage ? `${serverMessage}：${validationText}` : validationText;
+    }
 
     if (!message && error.code === 'ECONNABORTED') {
       message = '请求超时，请检查网络后重试';

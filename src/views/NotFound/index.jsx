@@ -89,6 +89,7 @@ export default function NotFound() {
             </p>
             <div className="mt-3 space-y-2">
               {[
+                { label: '测试用例', path: '/test-cases' },
                 { label: '个人中心', path: '/profile' },
                 { label: '登录页', path: '/login' },
               ].map((item) => (

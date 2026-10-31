@@ -43,7 +43,7 @@ const SEED_NOTIFICATIONS = [
   {
     id: 3,
     title: "欢迎使用 Testing Platform",
-    detail: "当前保留个人中心与登录页两个模块",
+    detail: "测试脚本服务已接入，版本记录会自动递增",
     time: "1 h",
     tone: "frost",
     read: true,
@@ -169,7 +169,7 @@ export default function Header({ collapsed, onToggleCollapse, onOpenMobile }) {
         <Breadcrumb className="tp-breadcrumb hidden min-w-0 sm:block">
           <Breadcrumb.Item>
             <Link
-              to="/profile"
+              to="/test-cases"
               className="tp-breadcrumb__home"
               aria-label="首页"
             >

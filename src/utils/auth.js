@@ -24,7 +24,7 @@ export const DEMO_USER = {
  * 演示权限集。路由 meta.permission 会与这里比对，
  * 没有权限的路由不会出现在侧边菜单中。
  */
-export const DEMO_PERMISSIONS = ['profile:view'];
+export const DEMO_PERMISSIONS = ['script:view', 'profile:view'];
 
 export function getToken() {
   try {
