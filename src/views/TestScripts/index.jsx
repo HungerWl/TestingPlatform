@@ -28,6 +28,7 @@ import {
   IconSearch,
 } from '@arco-design/web-react/icon';
 import { useLocation, useNavigate } from 'react-router-dom';
+import FormLabel from '../../components/common/FormLabel';
 import PageHeader from '../../components/common/PageHeader';
 import TestCaseSelect from '../../components/test/TestCaseSelect';
 import {
@@ -77,8 +78,9 @@ function ScriptTypeTag({ type }) {
   return <Tag color={item.color}>{item.label}</Tag>;
 }
 
-function ScriptFormFields({ editing }) {
-  const selectedCase = editing?.test_case || null;
+function ScriptFormFields({ editing, lockedCase }) {
+  const selectedCase = editing?.test_case || lockedCase || null;
+  const caseLocked = Boolean(editing) || Boolean(lockedCase);
 
   return (
     <>
@@ -86,12 +88,12 @@ function ScriptFormFields({ editing }) {
       <Grid.Row gutter={16}>
         <Grid.Col xs={24}>
           <Form.Item
-            label="所属测试用例"
+            label={<FormLabel required>所属测试用例</FormLabel>}
             field="test_case_id"
             rules={[{ required: true, message: '请选择所属测试用例' }]}
           >
             <TestCaseSelect
-              disabled={Boolean(editing)}
+              disabled={caseLocked}
               selectedCase={selectedCase}
               placeholder="搜索业务编号或用例名称"
             />
@@ -99,7 +101,7 @@ function ScriptFormFields({ editing }) {
         </Grid.Col>
         <Grid.Col xs={24} md={12}>
           <Form.Item
-            label="脚本名称"
+            label={<FormLabel required>脚本名称</FormLabel>}
             field="name"
             rules={[
               { required: true, message: '请输入脚本名称' },
@@ -110,13 +112,13 @@ function ScriptFormFields({ editing }) {
           </Form.Item>
         </Grid.Col>
         <Grid.Col xs={24} md={12}>
-          <Form.Item label="脚本类型" field="script_type">
+          <Form.Item label={<FormLabel>脚本类型</FormLabel>} field="script_type">
             <Select allowClear placeholder="选择 Playwright 技术栈" options={SCRIPT_TYPES} />
           </Form.Item>
         </Grid.Col>
         <Grid.Col xs={24} md={12}>
           <Form.Item
-            label="业务版本号"
+            label={<FormLabel required>业务版本号</FormLabel>}
             field="version"
             rules={[
               { required: true, message: '请输入业务版本号' },
@@ -130,7 +132,7 @@ function ScriptFormFields({ editing }) {
 
       <Divider orientation="left">脚本内容</Divider>
       <Form.Item
-        label="源码"
+        label={<FormLabel required>源码</FormLabel>}
         field="content"
         rules={[
           { required: true, message: '请输入脚本源码' },
@@ -149,7 +151,7 @@ function ScriptFormFields({ editing }) {
         />
       </Form.Item>
 
-      <Form.Item label="脚本备注" field="remark">
+      <Form.Item label={<FormLabel>脚本备注</FormLabel>} field="remark">
         <Input.TextArea
           placeholder="补充脚本维护说明"
           autoSize={{ minRows: 2, maxRows: 4 }}
@@ -176,6 +178,7 @@ export default function TestScripts() {
 
   const [formVisible, setFormVisible] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [lockedCase, setLockedCase] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [busyId, setBusyId] = useState(null);
 
@@ -218,6 +221,14 @@ export default function TestScripts() {
     const state = location.state;
     if (!state?.caseId) return;
 
+    const incomingCase =
+      state.case || {
+        id: state.caseId,
+        case_no: state.caseNo,
+        name: state.caseLabel?.split(' · ').slice(1).join(' · ') || '',
+      };
+
+    setLockedCase(incomingCase);
     filterForm.setFieldsValue({ keyword: '', script_type: undefined, case_no: state.caseNo || '' });
     setQuery((previous) => ({
       ...previous,
@@ -235,17 +246,23 @@ export default function TestScripts() {
   );
 
   const handleSearch = (values) => {
+    const nextCaseNo = values.case_no?.trim() || '';
+    if (lockedCase && nextCaseNo !== lockedCase.case_no) {
+      setLockedCase(null);
+    }
+
     setQuery((previous) => ({
       ...previous,
       page: 1,
       keyword: values.keyword?.trim() || '',
       scriptType: values.script_type || '',
-      caseNo: values.case_no?.trim() || '',
+      caseNo: nextCaseNo,
     }));
   };
 
   const handleReset = () => {
     filterForm.resetFields();
+    setLockedCase(null);
     setQuery({ ...INITIAL_QUERY });
     setRefreshKey((key) => key + 1);
   };
@@ -257,15 +274,21 @@ export default function TestScripts() {
   };
 
   const applyFormValues = () => {
-    if (!editing) return;
-    form.setFieldsValue({
-      test_case_id: editing.test_case_id,
-      name: editing.name,
-      script_type: editing.script_type || undefined,
-      version: editing.version,
-      content: editing.content,
-      remark: editing.remark || '',
-    });
+    if (editing) {
+      form.setFieldsValue({
+        test_case_id: editing.test_case_id,
+        name: editing.name,
+        script_type: editing.script_type || undefined,
+        version: editing.version,
+        content: editing.content,
+        remark: editing.remark || '',
+      });
+      return;
+    }
+
+    if (lockedCase) {
+      form.setFieldsValue({ test_case_id: lockedCase.id });
+    }
   };
 
   const openEdit = async (record) => {
@@ -528,7 +551,7 @@ export default function TestScripts() {
             </Grid.Col>
           </Grid.Row>
           <Space>
-            <Button htmlType="submit" type="primary" icon={<IconSearch />}>
+            <Button htmlType="submit" type="primary">
               查询
             </Button>
             <Button onClick={handleReset}>重置</Button>
@@ -574,8 +597,14 @@ export default function TestScripts() {
         afterOpen={applyFormValues}
         afterClose={() => form.resetFields()}
       >
-        <Form form={form} layout="vertical" initialValues={INITIAL_FORM} onSubmit={handleSubmit}>
-          <ScriptFormFields editing={editing} />
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={INITIAL_FORM}
+          onSubmit={handleSubmit}
+          requiredSymbol={false}
+        >
+          <ScriptFormFields editing={editing} lockedCase={lockedCase} />
         </Form>
       </Drawer>
 

@@ -29,6 +29,7 @@ import {
   IconSearch,
 } from '@arco-design/web-react/icon';
 import { useNavigate } from 'react-router-dom';
+import FormLabel from '../../components/common/FormLabel';
 import PageHeader from '../../components/common/PageHeader';
 import {
   createTestCase,
@@ -87,7 +88,7 @@ function CaseFormFields() {
       <Grid.Row gutter={16}>
         <Grid.Col xs={24} md={12}>
           <Form.Item
-            label="用例名称"
+            label={<FormLabel required>用例名称</FormLabel>}
             field="name"
             rules={[
               { required: true, message: '请输入用例名称' },
@@ -99,7 +100,7 @@ function CaseFormFields() {
         </Grid.Col>
         <Grid.Col xs={24} md={12}>
           <Form.Item
-            label="业务编号"
+            label={<FormLabel required>业务编号</FormLabel>}
             field="case_no"
             rules={[
               { required: true, message: '请输入业务编号' },
@@ -111,7 +112,7 @@ function CaseFormFields() {
         </Grid.Col>
         <Grid.Col xs={24} md={12}>
           <Form.Item
-            label="所属系统"
+            label={<FormLabel required>所属系统</FormLabel>}
             field="system_name"
             rules={[
               { required: true, message: '请输入所属系统' },
@@ -122,7 +123,7 @@ function CaseFormFields() {
           </Form.Item>
         </Grid.Col>
         <Grid.Col xs={24} md={12}>
-          <Form.Item label="优先级" field="priority">
+          <Form.Item label={<FormLabel>优先级</FormLabel>} field="priority">
             <Select allowClear placeholder="选择优先级" options={PRIORITY_OPTIONS} />
           </Form.Item>
         </Grid.Col>
@@ -131,7 +132,7 @@ function CaseFormFields() {
       <Divider orientation="left">测试内容</Divider>
       <Grid.Row gutter={16}>
         <Grid.Col xs={24} md={12}>
-          <Form.Item label="前置条件" field="precondition">
+          <Form.Item label={<FormLabel>前置条件</FormLabel>} field="precondition">
             <Input.TextArea
               placeholder="填写执行用例前需要满足的条件"
               autoSize={{ minRows: 3, maxRows: 6 }}
@@ -139,7 +140,7 @@ function CaseFormFields() {
           </Form.Item>
         </Grid.Col>
         <Grid.Col xs={24} md={12}>
-          <Form.Item label="预期结果" field="expected_result">
+          <Form.Item label={<FormLabel>预期结果</FormLabel>} field="expected_result">
             <Input.TextArea
               placeholder="填写期望的测试结果"
               autoSize={{ minRows: 3, maxRows: 6 }}
@@ -147,7 +148,7 @@ function CaseFormFields() {
           </Form.Item>
         </Grid.Col>
         <Grid.Col xs={24}>
-          <Form.Item label="测试步骤" field="test_steps">
+          <Form.Item label={<FormLabel>测试步骤</FormLabel>} field="test_steps">
             <Input.TextArea
               placeholder="按顺序填写测试步骤"
               autoSize={{ minRows: 4, maxRows: 10 }}
@@ -155,7 +156,7 @@ function CaseFormFields() {
           </Form.Item>
         </Grid.Col>
         <Grid.Col xs={24}>
-          <Form.Item label="用例备注" field="remark">
+          <Form.Item label={<FormLabel>用例备注</FormLabel>} field="remark">
             <Input.TextArea
               placeholder="补充维护说明"
               autoSize={{ minRows: 2, maxRows: 4 }}
@@ -336,6 +337,12 @@ export default function TestCases() {
         caseId: record.id,
         caseNo: record.case_no,
         caseLabel: `${record.case_no} · ${record.name}`,
+        case: {
+          id: record.id,
+          case_no: record.case_no,
+          name: record.name,
+          system_name: record.system_name,
+        },
       },
     });
   };
@@ -505,7 +512,7 @@ export default function TestCases() {
             </Grid.Col>
           </Grid.Row>
           <Space>
-            <Button htmlType="submit" type="primary" icon={<IconSearch />}>
+            <Button htmlType="submit" type="primary">
               查询
             </Button>
             <Button onClick={handleReset}>重置</Button>
@@ -551,7 +558,13 @@ export default function TestCases() {
         afterOpen={applyFormValues}
         afterClose={() => form.resetFields()}
       >
-        <Form form={form} layout="vertical" initialValues={INITIAL_FORM} onSubmit={handleSubmit}>
+        <Form
+          form={form}
+          layout="vertical"
+          initialValues={INITIAL_FORM}
+          onSubmit={handleSubmit}
+          requiredSymbol={false}
+        >
           <CaseFormFields />
         </Form>
       </Drawer>

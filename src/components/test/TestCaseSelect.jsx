@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
-import { Select } from '@arco-design/web-react';
-import { fetchTestCases } from '../../api/testCases';
+import { useEffect, useRef, useState } from "react";
+import { Select } from "@arco-design/web-react";
+import { fetchTestCases } from "../../api/testCases";
 
 function toOption(testCase) {
   if (!testCase) return null;
@@ -17,7 +17,7 @@ function toOption(testCase) {
 export default function TestCaseSelect({
   value,
   onChange,
-  placeholder = '搜索业务编号或用例名称',
+  placeholder = "搜索业务编号或用例名称",
   disabled = false,
   selectedCase = null,
 }) {
@@ -30,7 +30,8 @@ export default function TestCaseSelect({
     if (!selectedOption) return;
 
     setOptions((previous) => {
-      if (previous.some((item) => item.value === selectedOption.value)) return previous;
+      if (previous.some((item) => item.value === selectedOption.value))
+        return previous;
       return [selectedOption, ...previous];
     });
   }, [selectedCase]);
@@ -62,13 +63,23 @@ export default function TestCaseSelect({
 
     timerRef.current = window.setTimeout(() => {
       setLoading(true);
-      fetchTestCases({ page: 1, page_size: 20, keyword: keyword.trim() || undefined })
+      fetchTestCases({
+        page: 1,
+        page_size: 20,
+        keyword: keyword.trim() || undefined,
+      })
         .then((result) => {
-          const nextOptions = (result?.items || []).map(toOption).filter(Boolean);
+          const nextOptions = (result?.items || [])
+            .map(toOption)
+            .filter(Boolean);
           setOptions((previous) => {
-            const selectedOption = previous.find((item) => item.value === value);
+            const selectedOption = previous.find(
+              (item) => item.value === value,
+            );
             if (!selectedOption) return nextOptions;
-            const withoutSelected = nextOptions.filter((item) => item.value !== value);
+            const withoutSelected = nextOptions.filter(
+              (item) => item.value !== value,
+            );
             return [selectedOption, ...withoutSelected];
           });
         })
@@ -89,7 +100,6 @@ export default function TestCaseSelect({
       onChange={onChange}
       onSearch={handleSearch}
       disabled={disabled}
-      notFoundContent="没有匹配的测试用例"
     />
   );
 }
