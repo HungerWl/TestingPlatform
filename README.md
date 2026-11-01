@@ -6,12 +6,13 @@
 >
 > 样式入口为 [src/index.scss](src/index.scss)，通过 Sass 编译；响应式断点使用 SCSS 变量统一管理，并使用原生嵌套组织品牌样式。
 
-当前侧边栏包含两个业务菜单：
+当前侧边栏包含三个业务菜单：
 
-- **测试用例**：对接 TestingService 的最新脚本 CRUD 接口，使用 Arco 原生组件构建干净的列表、筛选、表单和详情体验；
+- **测试用例**：维护纯业务用例，复用 Arco 原生表格、抽屉、表单和 Statistic 组件；
+- **脚本资产**：维护 Playwright 脚本资产，脚本通过 `test_case_id` 关联用例；
 - **个人中心**：账号资料、安全设置与通知偏好。
 
-登录页为隐藏的全屏路由，不占用侧边栏。
+业务用例与脚本资产按后端新模型彻底拆分，界面上不展示任何技术 UUID。
 
 ![测试用例](docs/preview-test-cases.png)
 
@@ -39,73 +40,62 @@ npm run preview
 | 路径 | 页面 | 菜单 | 说明 |
 | --- | --- | --- | --- |
 | `/` | 重定向 | — | 进入 `/test-cases` |
-| `/test-cases` | 测试用例 | 显示 | 脚本列表、查看、新增、编辑、删除 |
+| `/test-cases` | 测试用例 | 显示 | 业务用例 CRUD、筛选与关联脚本入口 |
+| `/test-scripts` | 脚本资产 | 显示 | 脚本资产 CRUD、用例关联与源码查看 |
 | `/profile` | 个人中心 | 显示 | 资料、安全与通知设置 |
 | `/login` | 登录页 | 隐藏 | 全屏示例登录页 |
 | `/404` 与 `*` | 404 | — | 未匹配路径兜底 |
 
+![测试用例](docs/preview-test-cases.png)
+
+![脚本资产](docs/preview-test-scripts.png)
+
 ![登录页](docs/preview-login.png)
 
-## 测试用例模块
+## 业务用例模块
 
-### 已接入接口
+### 接口
 
-| 方法 | 路径 | 前端用途 |
+| 方法 | 路径 | 用途 |
 | --- | --- | --- |
-| `GET` | `/api/v1/scripts` | 分页查询、关键字/类型/用例 ID 筛选 |
-| `GET` | `/api/v1/scripts/{script_id}` | 查看脚本详情、编辑前拉取最新数据 |
-| `POST` | `/api/v1/scripts` | 新增测试用例 |
-| `PUT` | `/api/v1/scripts/{script_id}` | 修改脚本，`revision` 自动 +1 |
-| `DELETE` | `/api/v1/scripts/{script_id}` | 删除测试用例 |
+| `GET` | `/api/v1/test-cases` | 分页查询；支持 keyword / system_name / priority |
+| `GET` | `/api/v1/test-cases/{case_id}` | 用例详情，响应包含 `script_count` |
+| `POST` | `/api/v1/test-cases` | 新增用例 |
+| `PUT` | `/api/v1/test-cases/{case_id}` | 修改用例 |
+| `DELETE` | `/api/v1/test-cases/{case_id}` | 删除用例；存在关联脚本时返回 409 |
 
-列表查询参数：
+用例字段：`case_no`、`name`、`system_name`、`priority`、`precondition`、`test_steps`、`expected_result`、`remark`。
 
-```text
-page, page_size, keyword, script_type, case_id
-```
-
-脚本类型仅允许：
-
-```text
-playwright-python
-playwright-ts
-playwright-js
-```
-
-新增 / 编辑表单字段：
-
-| 字段 | 必填 | 说明 |
-| --- | --- | --- |
-| `name` | 是 | 用例名称，最长 128 字符 |
-| `system_name` | 是 | 所属系统，最长 128 字符 |
-| `case_id` | 否 | 业务编号，最长 64 字符 |
-| `priority` | 否 | 优先级，例如 P0/P1/P2/P3 |
-| `version` | 否 | 业务版本号，默认 `1.0.0` |
-| `script_type` | 否 | Playwright 脚本类型，可清空 |
-| `precondition` | 否 | 前置条件 |
-| `test_steps` | 否 | 测试步骤 |
-| `expected_result` | 否 | 预期结果 |
-| `content` | 否 | 脚本源码，可清空 |
-| `remark` | 否 | 备注，最长 500 字符 |
-
-新增测试用例表单：
+- 侧边栏按名称/业务编号、所属系统、优先级筛选；
+- 列表展示用例名称、业务编号、所属系统、优先级、关联脚本数、创建时间；
+- 不展示 UUID；
+- 用例下存在脚本时删除会展示后端 409 提示；
+- 可一键跳转到脚本资产页，并按当前业务编号过滤。
 
 ![新增测试用例](docs/preview-test-case-form.png)
 
-用例详情抽屉：
+## 脚本资产模块
 
-![脚本详情](docs/preview-test-case-detail.png)
+### 接口
 
-### 交互说明
+| 方法 | 路径 | 用途 |
+| --- | --- | --- |
+| `GET` | `/api/v1/test-scripts` | 分页查询；支持 keyword / script_type / test_case_id / case_no |
+| `GET` | `/api/v1/test-scripts/{script_id}` | 脚本详情 |
+| `POST` | `/api/v1/test-scripts` | 新增脚本资产 |
+| `PUT` | `/api/v1/test-scripts/{script_id}` | 修改脚本，revision 自动 +1 |
+| `DELETE` | `/api/v1/test-scripts/{script_id}` | 删除脚本 |
 
-- 回车或点击「查询」应用筛选条件；
-- 支持按名称关键字、脚本类型、业务编号过滤；
-- 表格不展示技术 UUID，只展示用例名称、所属系统、脚本类型、优先级、业务版本与技术修订号；
-- 点击「查看」打开详情抽屉，按「概览 / 测试信息 / 脚本源码」分栏浏览；
-- 编辑时先调用详情接口获取最新数据；每次保存由服务端把 `revision` 加 1，`version` 由用户维护；
-- 删除前使用 Popconfirm 二次确认；
-- 所有错误由 `request.js` 统一解析后端 `{ code, msg, data }` 响应并提示；
-- 列表接口返回后按 `items / total / page / page_size / pages` 渲染分页。
+脚本字段：`test_case_id`、`name`、`script_type`、`content`、`version`、`revision`、`remark`。
+
+- 新增脚本通过远程搜索选择所属用例，界面只展示业务编号和用例名称；
+- 列表展示脚本名称、所属用例、脚本类型、版本/修订号和更新时间；
+- 脚本详情展示关联用例摘要、完整源码和脚本备注；
+- 编辑时调用详情接口获取最新数据，保存后 revision 自动递增；
+- 脚本类型支持 Clear；`content` 必填；
+- 不展示任何技术 UUID。
+
+![新增脚本](docs/preview-test-script-form.png)
 
 ## Axios 封装
 
@@ -117,7 +107,10 @@ playwright-js
 - 422 参数校验错误会拼接后端字段级消息；
 - 404、500、超时、断网等 HTTP / 网络异常统一提示。
 
-接口定义集中在 [src/api/scripts.js](src/api/scripts.js)。
+接口定义集中在：
+
+- [src/api/testCases.js](src/api/testCases.js)
+- [src/api/testScripts.js](src/api/testScripts.js)
 
 ## 路由与菜单
 
@@ -125,19 +118,20 @@ playwright-js
 
 ```js
 {
-  path: '/test-cases',
-  component: lazy(() => import('../views/TestCases')),
+  path: '/test-scripts',
+  component: lazy(() => import('../views/TestScripts')),
   meta: {
-    title: '测试用例',
+    title: '脚本资产',
     icon: IconCode,
     permission: 'script:view',
-    eyebrow: 'TEST LIBRARY / 01',
+    eyebrow: 'SCRIPT ASSETS / 02',
   },
 }
 ```
 
 - 侧边栏按 `meta.hidden` 与 `meta.permission` 自动过滤；
-- 当前可见菜单为「测试用例」「个人中心」；
+- 当前可见菜单为「测试用例」「脚本资产」「个人中心」；
+- 测试用例与脚本资产使用独立的路由、页面和 API 资源；
 - 登录页 `meta.hidden = true`，不会出现在菜单中；
 - 无权限用户手动访问受限路由会进入 404。
 
@@ -165,7 +159,8 @@ TestingPlatform/
 ├── src/
 │   ├── api/
 │   │   ├── request.js            # Axios 统一封装
-│   │   └── scripts.js            # 测试用例接口
+│   │   ├── testCases.js          # 业务用例接口
+│   │   └── testScripts.js        # 脚本资产接口
 │   ├── components/
 │   │   ├── boot/BootScreen.jsx
 │   │   ├── common/
@@ -173,6 +168,7 @@ TestingPlatform/
 │   │   │   ├── BrandMark.jsx
 │   │   │   ├── PageHeader.jsx
 │   │   │   └── StatusTag.jsx
+│   │   ├── test/TestCaseSelect.jsx # 远程用例选择器
 │   │   └── layout/
 │   │       ├── Footer.jsx
 │   │       ├── Header.jsx
@@ -195,7 +191,8 @@ TestingPlatform/
 │   │   ├── Login/index.jsx
 │   │   ├── NotFound/index.jsx
 │   │   ├── Profile/index.jsx
-│   │   └── TestCases/index.jsx
+│   │   ├── TestCases/index.jsx
+│   │   └── TestScripts/index.jsx
 │   ├── App.jsx
 │   ├── index.scss
 │   └── main.jsx

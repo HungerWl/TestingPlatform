@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { IconCode, IconLock, IconUser } from '@arco-design/web-react/icon';
+import { IconCode, IconFile, IconLock, IconUser } from '@arco-design/web-react/icon';
 
 /**
  * 全站唯一的路由配置源。
@@ -11,7 +11,7 @@ import { IconCode, IconLock, IconUser } from '@arco-design/web-react/icon';
  *  - permission  权限标识，没有该权限时菜单自动过滤
  *  - blank       是否使用无侧边栏布局（登录页）
  *
- * 当前菜单：测试用例、个人中心；登录页为隐藏路由。
+ * 当前菜单：测试用例、脚本资产、个人中心；登录页为隐藏路由。
  */
 export const appRoutes = [
   {
@@ -19,9 +19,19 @@ export const appRoutes = [
     component: lazy(() => import('../views/TestCases')),
     meta: {
       title: '测试用例',
+      icon: IconFile,
+      permission: 'case:view',
+      eyebrow: 'TEST LIBRARY / 01',
+    },
+  },
+  {
+    path: '/test-scripts',
+    component: lazy(() => import('../views/TestScripts')),
+    meta: {
+      title: '脚本资产',
       icon: IconCode,
       permission: 'script:view',
-      eyebrow: 'TEST LIBRARY / 01',
+      eyebrow: 'SCRIPT ASSETS / 02',
     },
   },
   {
@@ -31,7 +41,7 @@ export const appRoutes = [
       title: '个人中心',
       icon: IconUser,
       permission: 'profile:view',
-      eyebrow: 'OPERATOR PROFILE / 02',
+      eyebrow: 'OPERATOR PROFILE / 03',
     },
   },
   {
