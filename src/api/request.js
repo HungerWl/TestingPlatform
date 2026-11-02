@@ -17,7 +17,6 @@ const request = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
   headers: {
-    'Content-Type': 'application/json',
     Accept: 'application/json',
   },
 });
@@ -42,8 +41,10 @@ request.interceptors.response.use(
   (response) => {
     const { data, config } = response;
 
-    // 文件下载等二进制响应直接返回，不做业务解包。
-    if (data instanceof Blob) return data;
+    // 文件下载等二进制响应直接返回；需要读取响应头时返回完整 Axios 响应。
+    if (data instanceof Blob) {
+      return config.returnFullResponse ? response : data;
+    }
 
     if (data && typeof data === 'object' && Object.prototype.hasOwnProperty.call(data, 'code')) {
       if (data.code === 0 || data.code === 200) {

@@ -454,7 +454,7 @@ export default function TestCases() {
         eyebrow="TEST LIBRARY / 01"
         meta={`TOTAL ${total} CASES · PAGE ${query.page}/${pages || 1}`}
         title="测试用例"
-        description="维护纯业务测试用例。脚本资产在独立模块中管理，并通过 test_case_id 与用例关联。"
+        description="维护纯业务测试用例。脚本资产在独立模块中管理，通过多对多关联被多个用例复用。"
         actions={
           <Space>
             <Button icon={<IconRefresh />} onClick={() => setRefreshKey((key) => key + 1)}>

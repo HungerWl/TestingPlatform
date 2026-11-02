@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { Select } from "@arco-design/web-react";
-import { fetchTestCases } from "../../api/testCases";
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Select } from '@arco-design/web-react';
+import { fetchTestCases } from '../../api/testCases';
 
 function toOption(testCase) {
   if (!testCase) return null;
@@ -12,38 +12,70 @@ function toOption(testCase) {
 
 /**
  * 远程搜索的测试用例选择器。
+ *
+ * mode="single" 时 value 是单个 UUID；
+ * mode="multiple" 时 value 是 UUID 数组。
  * 只展示业务编号与名称，不在界面上暴露 UUID。
  */
 export default function TestCaseSelect({
   value,
   onChange,
-  placeholder = "搜索业务编号或用例名称",
+  placeholder = '搜索业务编号或用例名称',
   disabled = false,
   selectedCase = null,
+  selectedCases = [],
+  mode = 'single',
 }) {
   const [options, setOptions] = useState([]);
   const [loading, setLoading] = useState(false);
   const timerRef = useRef(null);
 
-  useEffect(() => {
-    const selectedOption = toOption(selectedCase);
-    if (!selectedOption) return;
+  const selectedSeed = useMemo(() => {
+    const cases = mode === 'multiple'
+      ? (selectedCases || [])
+      : selectedCase
+        ? [selectedCase]
+        : [];
+    return cases.map(toOption).filter(Boolean);
+  }, [mode, selectedCase, selectedCases]);
 
+  const selectedSeedKey = selectedSeed.map((item) => item.value).join(',');
+
+  const selectedValueRef = useRef(new Set());
+  useEffect(() => {
+    const values = Array.isArray(value) ? value : value ? [value] : [];
+    selectedValueRef.current = new Set(values);
+  }, [value]);
+
+  useEffect(() => {
+    if (!selectedSeed.length) return;
     setOptions((previous) => {
-      if (previous.some((item) => item.value === selectedOption.value))
-        return previous;
-      return [selectedOption, ...previous];
+      const seedIds = new Set(selectedSeed.map((item) => item.value));
+      return [
+        ...selectedSeed,
+        ...previous.filter((item) => !seedIds.has(item.value)),
+      ];
     });
-  }, [selectedCase]);
+  }, [selectedSeedKey]);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
 
-    fetchTestCases({ page: 1, page_size: 20 })
+    fetchTestCases({ page: 1, page_size: 100 })
       .then((result) => {
         if (cancelled) return;
-        setOptions((result?.items || []).map(toOption).filter(Boolean));
+        const nextOptions = (result?.items || []).map(toOption).filter(Boolean);
+        setOptions((previous) => {
+          const selectedOptions = previous.filter((item) =>
+            selectedValueRef.current.has(item.value),
+          );
+          const selectedIds = new Set(selectedOptions.map((item) => item.value));
+          return [
+            ...selectedOptions,
+            ...nextOptions.filter((item) => !selectedIds.has(item.value)),
+          ];
+        });
       })
       .catch(() => {
         if (!cancelled) setOptions([]);
@@ -65,7 +97,7 @@ export default function TestCaseSelect({
       setLoading(true);
       fetchTestCases({
         page: 1,
-        page_size: 20,
+        page_size: 100,
         keyword: keyword.trim() || undefined,
       })
         .then((result) => {
@@ -73,14 +105,16 @@ export default function TestCaseSelect({
             .map(toOption)
             .filter(Boolean);
           setOptions((previous) => {
-            const selectedOption = previous.find(
-              (item) => item.value === value,
+            const selectedOptions = previous.filter((item) =>
+              selectedValueRef.current.has(item.value),
             );
-            if (!selectedOption) return nextOptions;
-            const withoutSelected = nextOptions.filter(
-              (item) => item.value !== value,
+            const selectedIds = new Set(
+              selectedOptions.map((item) => item.value),
             );
-            return [selectedOption, ...withoutSelected];
+            return [
+              ...selectedOptions,
+              ...nextOptions.filter((item) => !selectedIds.has(item.value)),
+            ];
           });
         })
         .catch(() => setOptions([]))
@@ -100,6 +134,8 @@ export default function TestCaseSelect({
       onChange={onChange}
       onSearch={handleSearch}
       disabled={disabled}
+      mode={mode === 'multiple' ? 'multiple' : undefined}
+      maxTagCount={mode === 'multiple' ? 3 : undefined}
     />
   );
 }

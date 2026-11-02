@@ -20,9 +20,12 @@ import {
   Typography,
 } from '@arco-design/web-react';
 import {
+  IconCode,
   IconDelete,
+  IconDownload,
   IconEdit,
   IconEye,
+  IconFile,
   IconPlus,
   IconRefresh,
   IconSearch,
@@ -30,15 +33,20 @@ import {
 import { useLocation, useNavigate } from 'react-router-dom';
 import FormLabel from '../../components/common/FormLabel';
 import PageHeader from '../../components/common/PageHeader';
+import ScriptFilePicker from '../../components/test/ScriptFilePicker';
 import TestCaseSelect from '../../components/test/TestCaseSelect';
 import {
-  createTestScript,
   deleteTestScript,
+  downloadTestScript,
   fetchTestScriptDetail,
   fetchTestScripts,
+  previewTestScript,
+  replaceTestScriptFile,
   updateTestScript,
+  updateTestScriptTestCases,
+  uploadTestScript,
 } from '../../api/testScripts';
-import { formatDateTime } from '../../utils/format';
+import { formatDateTime, formatFileSize } from '../../utils/format';
 
 const SCRIPT_TYPES = [
   { value: 'playwright-python', label: 'Playwright · Python', color: 'green' },
@@ -59,11 +67,11 @@ const INITIAL_QUERY = {
 };
 
 const INITIAL_FORM = {
-  test_case_id: undefined,
+  test_case_ids: [],
   name: '',
   script_type: undefined,
   version: '1.0.0',
-  content: '',
+  file: undefined,
   remark: '',
 };
 
@@ -72,15 +80,33 @@ const nullIfEmpty = (value) => {
   return value.trim() ? value : null;
 };
 
+const normalizeCaseIds = (ids = []) => [...new Set(ids.filter(Boolean))].sort();
+
 function ScriptTypeTag({ type }) {
   if (!type) return <Typography.Text type="secondary">—</Typography.Text>;
   const item = SCRIPT_TYPE_MAP[type] || { label: type, color: 'gray' };
   return <Tag color={item.color}>{item.label}</Tag>;
 }
 
+function CaseSummary({ testCases = [] }) {
+  if (!testCases.length) return <Typography.Text type="secondary">—</Typography.Text>;
+
+  return (
+    <Space direction="vertical" size={2}>
+      <Typography.Text ellipsis={{ showTooltip: true }} style={{ maxWidth: 200 }}>
+        {testCases[0].name}
+      </Typography.Text>
+      <Space wrap size={[4, 4]}>
+        <Tag color="arcoblue">{testCases[0].case_no}</Tag>
+        {testCases.length > 1 && <Tag>+{testCases.length - 1} 个用例</Tag>}
+      </Space>
+    </Space>
+  );
+}
+
 function ScriptFormFields({ editing, lockedCase }) {
-  const selectedCase = editing?.test_case || lockedCase || null;
-  const caseLocked = Boolean(editing) || Boolean(lockedCase);
+  const selectedCases =
+    editing?.test_cases || (lockedCase ? [lockedCase] : []);
 
   return (
     <>
@@ -88,14 +114,24 @@ function ScriptFormFields({ editing, lockedCase }) {
       <Grid.Row gutter={16}>
         <Grid.Col xs={24}>
           <Form.Item
-            label={<FormLabel required>所属测试用例</FormLabel>}
-            field="test_case_id"
-            rules={[{ required: true, message: '请选择所属测试用例' }]}
+            label={<FormLabel required>关联测试用例</FormLabel>}
+            field="test_case_ids"
+            rules={[
+              {
+                validator: (value, callback) => {
+                  if (!Array.isArray(value) || value.length === 0) {
+                    callback('至少选择一个测试用例');
+                  } else {
+                    callback();
+                  }
+                },
+              },
+            ]}
           >
             <TestCaseSelect
-              disabled={caseLocked}
-              selectedCase={selectedCase}
-              placeholder="搜索业务编号或用例名称"
+              mode="multiple"
+              selectedCases={selectedCases}
+              placeholder="搜索并选择测试用例，可多选"
             />
           </Form.Item>
         </Grid.Col>
@@ -130,24 +166,32 @@ function ScriptFormFields({ editing, lockedCase }) {
         </Grid.Col>
       </Grid.Row>
 
-      <Divider orientation="left">脚本内容</Divider>
+      <Divider orientation="left">{editing ? '替换文件（可选）' : '脚本文件'}</Divider>
       <Form.Item
-        label={<FormLabel required>源码</FormLabel>}
-        field="content"
+        label={
+          editing ? <FormLabel>新文件</FormLabel> : <FormLabel required>上传文件</FormLabel>
+        }
+        field="file"
+        extra={
+          editing
+            ? '不选择新文件时保留当前文件；选择后上传成功会删除旧文件。'
+            : '保存时会同时上传文件并创建脚本。'
+        }
         rules={[
-          { required: true, message: '请输入脚本源码' },
           {
             validator: (value, callback) => {
-              if (!value || !value.trim()) callback('脚本内容不能为空');
-              else callback();
+              if (!editing && !(value instanceof File)) {
+                callback('请选择脚本文件');
+                return;
+              }
+              callback();
             },
           },
         ]}
       >
-        <Input.TextArea
-          placeholder="填写 Playwright 脚本源码"
-          autoSize={{ minRows: 10, maxRows: 20 }}
-          spellCheck={false}
+        <ScriptFilePicker
+          currentFileName={editing?.file_name}
+          currentFileSize={editing?.file_size}
         />
       </Form.Item>
 
@@ -185,6 +229,11 @@ export default function TestScripts() {
   const [detailVisible, setDetailVisible] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState(null);
+
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewRecord, setPreviewRecord] = useState(null);
+  const [previewContent, setPreviewContent] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -229,7 +278,11 @@ export default function TestScripts() {
       };
 
     setLockedCase(incomingCase);
-    filterForm.setFieldsValue({ keyword: '', script_type: undefined, case_no: state.caseNo || '' });
+    filterForm.setFieldsValue({
+      keyword: '',
+      script_type: undefined,
+      case_no: state.caseNo || '',
+    });
     setQuery((previous) => ({
       ...previous,
       page: 1,
@@ -240,8 +293,8 @@ export default function TestScripts() {
     navigate(location.pathname, { replace: true, state: null });
   }, [filterForm, location.pathname, location.state, navigate]);
 
-  const pageHighRevision = useMemo(
-    () => rows.reduce((max, item) => Math.max(max, item.revision || 0), 0),
+  const pageFileSize = useMemo(
+    () => rows.reduce((sum, item) => sum + (Number(item.file_size) || 0), 0),
     [rows],
   );
 
@@ -274,21 +327,24 @@ export default function TestScripts() {
   };
 
   const applyFormValues = () => {
+    form.resetFields();
     if (editing) {
       form.setFieldsValue({
-        test_case_id: editing.test_case_id,
+        test_case_ids: (editing.test_cases || []).map((item) => item.id),
         name: editing.name,
         script_type: editing.script_type || undefined,
         version: editing.version,
-        content: editing.content,
+        file: undefined,
         remark: editing.remark || '',
       });
       return;
     }
 
-    if (lockedCase) {
-      form.setFieldsValue({ test_case_id: lockedCase.id });
-    }
+    form.setFieldsValue({
+      test_case_ids: lockedCase ? [lockedCase.id] : [],
+      version: '1.0.0',
+      file: undefined,
+    });
   };
 
   const openEdit = async (record) => {
@@ -311,31 +367,55 @@ export default function TestScripts() {
   };
 
   const handleSubmit = async (values) => {
-    setSubmitting(true);
     const isEdit = Boolean(editing);
+    const file = values.file instanceof File ? values.file : null;
+    const testCaseIds = normalizeCaseIds(values.test_case_ids || []);
 
+    if (!testCaseIds.length) {
+      Message.error('至少选择一个测试用例');
+      return;
+    }
+    if (!isEdit && !file) {
+      Message.error('请选择脚本文件');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      const payload = {
+      const metadata = {
         name: values.name.trim(),
         script_type: values.script_type || null,
-        content: values.content,
         version: values.version.trim(),
         remark: nullIfEmpty(values.remark),
       };
 
       if (isEdit) {
-        const updated = await updateTestScript(editing.id, payload);
-        Message.success(`保存成功，当前 revision 为 ${updated.revision}`);
+        await updateTestScript(editing.id, metadata);
+
+        const previousCaseIds = normalizeCaseIds(
+          (editing.test_cases || []).map((item) => item.id),
+        );
+        if (previousCaseIds.join(',') !== testCaseIds.join(',')) {
+          await updateTestScriptTestCases(editing.id, testCaseIds);
+        }
+
+        if (file) {
+          await replaceTestScriptFile(editing.id, { file });
+        }
+
+        Message.success(file ? '脚本信息和文件已更新' : '脚本信息已更新');
       } else {
-        const created = await createTestScript({
-          ...payload,
-          test_case_id: values.test_case_id,
+        const created = await uploadTestScript({
+          file,
+          testCaseIds,
+          ...metadata,
         });
-        Message.success(`脚本创建成功，初始 revision 为 ${created.revision}`);
+        Message.success(`脚本上传成功：${created.file_name}`);
       }
 
       setFormVisible(false);
       setEditing(null);
+      setDetailVisible(false);
       form.resetFields();
       setQuery((previous) => ({ ...previous, page: 1 }));
       setRefreshKey((key) => key + 1);
@@ -349,7 +429,7 @@ export default function TestScripts() {
   const handleDelete = async (record) => {
     try {
       await deleteTestScript(record.id);
-      Message.success('脚本已删除');
+      Message.success('脚本及当前文件已删除');
       const nextPage = rows.length === 1 && query.page > 1 ? query.page - 1 : query.page;
       setQuery((previous) => ({ ...previous, page: nextPage }));
       setRefreshKey((key) => key + 1);
@@ -378,60 +458,91 @@ export default function TestScripts() {
     setFormVisible(true);
   };
 
+  const handlePreview = async (record) => {
+    setPreviewRecord(record);
+    setPreviewVisible(true);
+    setPreviewLoading(true);
+    setPreviewContent('');
+    try {
+      setPreviewContent(await previewTestScript(record.id));
+    } catch {
+      setPreviewVisible(false);
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleDownload = async (record) => {
+    setBusyId(record.id);
+    try {
+      const { blob, fileName } = await downloadTestScript(record.id, record.file_name);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = fileName || record.file_name || 'script-file';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      Message.success('文件下载已开始');
+    } catch {
+      // request.js 已统一提示错误。
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const detailCaseTags = (detail?.test_cases || []).map((item) => (
+    <Tag key={item.id} color="arcoblue">
+      {item.case_no} · {item.name}
+    </Tag>
+  ));
+
   const columns = [
     {
       title: '脚本名称',
       dataIndex: 'name',
-      width: 250,
+      width: 270,
       render: (value, record) => (
-        <Space direction="vertical" size={0}>
+        <Space direction="vertical" size={2}>
           <Typography.Text>{value}</Typography.Text>
-          <Typography.Text type="secondary">
-            {record.version} · revision {record.revision}
-          </Typography.Text>
+          <Space wrap size={[4, 4]}>
+            <ScriptTypeTag type={record.script_type} />
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              v{record.version} · {record.file_ext}
+            </Typography.Text>
+          </Space>
         </Space>
       ),
     },
     {
-      title: '所属用例',
-      dataIndex: 'test_case',
-      width: 300,
-      render: (value) => (
-        <Space direction="vertical" size={0}>
-          <Typography.Text>{value?.name || '—'}</Typography.Text>
-          <Typography.Text type="secondary">{value?.case_no || '—'}</Typography.Text>
-        </Space>
-      ),
+      title: '关联用例',
+      dataIndex: 'test_cases',
+      width: 230,
+      render: (value) => <CaseSummary testCases={value} />,
     },
     {
-      title: '脚本类型',
-      dataIndex: 'script_type',
-      width: 190,
-      render: (value) => <ScriptTypeTag type={value} />,
-    },
-    {
-      title: '版本 / 修订',
-      dataIndex: 'version',
-      width: 150,
+      title: '当前文件',
+      dataIndex: 'file_name',
+      width: 230,
       render: (value, record) => (
-        <Space size={6}>
-          <Tag>{value}</Tag>
-          <Typography.Text type="secondary">rev.{record.revision}</Typography.Text>
+        <Space size={6} style={{ maxWidth: '100%' }}>
+          <IconFile />
+          <Space direction="vertical" size={0} style={{ minWidth: 0 }}>
+            <Typography.Text ellipsis={{ showTooltip: true }} style={{ maxWidth: 170 }}>
+              {value}
+            </Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {formatFileSize(record.file_size)}
+            </Typography.Text>
+          </Space>
         </Space>
-      ),
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updated_at',
-      width: 170,
-      render: (value) => (
-        <Typography.Text type="secondary">{formatDateTime(value)}</Typography.Text>
       ),
     },
     {
       title: '操作',
       dataIndex: 'action',
-      width: 118,
+      width: 218,
       fixed: 'right',
       render: (_, record) => (
         <Space size={0}>
@@ -441,7 +552,26 @@ export default function TestScripts() {
               size="mini"
               icon={<IconEye />}
               onClick={() => openDetail(record)}
-              aria-label="查看脚本"
+              aria-label="查看脚本详情"
+            />
+          </Tooltip>
+          <Tooltip content="预览文件">
+            <Button
+              type="text"
+              size="mini"
+              icon={<IconCode />}
+              onClick={() => handlePreview(record)}
+              aria-label="预览脚本"
+            />
+          </Tooltip>
+          <Tooltip content="下载">
+            <Button
+              type="text"
+              size="mini"
+              icon={<IconDownload />}
+              loading={busyId === record.id}
+              onClick={() => handleDownload(record)}
+              aria-label="下载脚本"
             />
           </Tooltip>
           <Tooltip content="编辑">
@@ -456,7 +586,7 @@ export default function TestScripts() {
           </Tooltip>
           <Popconfirm
             title="删除这个脚本？"
-            content="删除后不可恢复。"
+            content="删除后当前文件和用例关联都会清理。"
             okText="删除"
             cancelText="取消"
             onOk={() => handleDelete(record)}
@@ -479,7 +609,7 @@ export default function TestScripts() {
   const statistics = [
     { title: '脚本总数', value: total, suffix: '个' },
     { title: '本页记录', value: rows.length, suffix: '个' },
-    { title: '本页最高修订号', value: pageHighRevision, suffix: '' },
+    { title: '本页文件大小', value: formatFileSize(pageFileSize), suffix: '' },
     { title: '总页数', value: pages, suffix: '页' },
   ];
 
@@ -489,14 +619,14 @@ export default function TestScripts() {
         eyebrow="SCRIPT ASSETS / 02"
         meta={`TOTAL ${total} SCRIPTS · PAGE ${query.page}/${pages || 1}`}
         title="脚本资产"
-        description="管理 Playwright 脚本资产、源码、业务版本和技术修订号。脚本必须关联一个测试用例。"
+        description="管理脚本文件、关联测试用例和业务版本。一个脚本可被多个用例复用；不保存源码正文，不保留历史文件。"
         actions={
           <Space>
             <Button icon={<IconRefresh />} onClick={() => setRefreshKey((key) => key + 1)}>
               刷新
             </Button>
             <Button type="primary" icon={<IconPlus />} onClick={openCreate}>
-              新增脚本
+              上传脚本
             </Button>
           </Space>
         }
@@ -510,7 +640,7 @@ export default function TestScripts() {
                 title={item.title}
                 value={item.value}
                 suffix={item.suffix}
-                groupSeparator
+                groupSeparator={typeof item.value === 'number'}
               />
             </Card>
           </Grid.Col>
@@ -541,7 +671,7 @@ export default function TestScripts() {
               </Form.Item>
             </Grid.Col>
             <Grid.Col xs={24} md={7}>
-              <Form.Item label="用例业务编号" field="case_no">
+              <Form.Item label="关联用例编号" field="case_no">
                 <Input
                   allowClear
                   placeholder="例如：DAS-20261026-002"
@@ -568,7 +698,7 @@ export default function TestScripts() {
           columns={columns}
           data={rows}
           loading={loading}
-          scroll={{ x: 1180 }}
+          scroll={{ x: 950 }}
           pagination={{
             current: query.page,
             pageSize: query.pageSize,
@@ -584,14 +714,14 @@ export default function TestScripts() {
       </Card>
 
       <Drawer
-        title={editing ? '编辑脚本资产' : '新增脚本资产'}
+        title={editing ? '编辑脚本资产' : '上传脚本资产'}
         visible={formVisible}
         onOk={() => form.submit()}
         onCancel={closeForm}
         confirmLoading={submitting}
-        okText={editing ? '保存修改' : '创建'}
+        okText={editing ? '保存修改' : '上传并创建'}
         cancelText="取消"
-        width="min(860px, 100vw)"
+        width="min(920px, 100vw)"
         unmountOnExit
         focusLock
         afterOpen={applyFormValues}
@@ -612,11 +742,17 @@ export default function TestScripts() {
         title="脚本详情"
         visible={detailVisible}
         onCancel={() => setDetailVisible(false)}
-        width="min(720px, 100vw)"
+        width="min(760px, 100vw)"
         footer={
           detail ? (
             <Space>
               <Button onClick={() => setDetailVisible(false)}>关闭</Button>
+              <Button icon={<IconDownload />} onClick={() => handleDownload(detail)}>
+                下载
+              </Button>
+              <Button icon={<IconEye />} onClick={() => handlePreview(detail)}>
+                预览
+              </Button>
               <Button type="primary" icon={<IconEdit />} onClick={editFromDetail}>
                 编辑
               </Button>
@@ -629,12 +765,12 @@ export default function TestScripts() {
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
               <div>
                 <Typography.Title heading={5}>{detail.name}</Typography.Title>
-                <Space wrap>
-                  <Tag>{detail.test_case?.name || '—'}</Tag>
+                <Space wrap size={[6, 6]}>
                   <ScriptTypeTag type={detail.script_type} />
                   <Tag color="purple">v{detail.version}</Tag>
+                  <Tag>{detail.file_ext}</Tag>
                   <Typography.Text type="secondary">
-                    revision {detail.revision}
+                    {formatFileSize(detail.file_size)}
                   </Typography.Text>
                 </Space>
               </div>
@@ -643,12 +779,29 @@ export default function TestScripts() {
                 column={{ xs: 1, sm: 2 }}
                 border
                 data={[
-                  { label: '所属用例', value: detail.test_case?.name || '—' },
-                  { label: '业务编号', value: detail.test_case?.case_no || '—' },
-                  { label: '所属系统', value: detail.test_case?.system_name || '—' },
-                  { label: '脚本类型', value: <ScriptTypeTag type={detail.script_type} /> },
+                  {
+                    label: '关联用例',
+                    value: detailCaseTags.length ? (
+                      <Space wrap size={[4, 4]}>{detailCaseTags}</Space>
+                    ) : (
+                      '—'
+                    ),
+                  },
+                  { label: '文件名', value: detail.file_name },
+                  { label: '文件大小', value: formatFileSize(detail.file_size) },
+                  { label: 'MIME 类型', value: detail.mime_type },
                   { label: '业务版本号', value: detail.version },
-                  { label: '技术修订号', value: `revision ${detail.revision}` },
+                  { label: '文件上传时间', value: formatDateTime(detail.uploaded_at) },
+                  {
+                    label: 'SHA-256',
+                    value: (
+                      <Tooltip content={detail.file_sha256}>
+                        <Typography.Text code>
+                          {detail.file_sha256?.slice(0, 16)}…
+                        </Typography.Text>
+                      </Tooltip>
+                    ),
+                  },
                   { label: '创建时间', value: formatDateTime(detail.created_at) },
                   { label: '更新时间', value: formatDateTime(detail.updated_at) },
                 ]}
@@ -664,17 +817,44 @@ export default function TestScripts() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Typography.Text type="secondary">脚本源码</Typography.Text>
-                <Input.TextArea
-                  value={detail.content}
-                  readOnly
-                  autoSize={{ minRows: 10, maxRows: 22 }}
-                  spellCheck={false}
-                />
-              </div>
+              <Card size="small" title="文件操作">
+                <Space wrap>
+                  <Button icon={<IconEye />} onClick={() => handlePreview(detail)}>
+                    在线预览
+                  </Button>
+                  <Button icon={<IconDownload />} onClick={() => handleDownload(detail)}>
+                    下载当前文件
+                  </Button>
+                  <Typography.Text type="secondary">
+                    当前文件：{detail.file_name}
+                  </Typography.Text>
+                </Space>
+              </Card>
             </Space>
           ) : null}
+        </Spin>
+      </Drawer>
+
+      <Drawer
+        title={`预览 · ${previewRecord?.file_name || ''}`}
+        visible={previewVisible}
+        onCancel={() => setPreviewVisible(false)}
+        width="min(920px, 100vw)"
+        footer={
+          <Space>
+            <Button onClick={() => setPreviewVisible(false)}>关闭</Button>
+            {previewRecord && (
+              <Button icon={<IconDownload />} onClick={() => handleDownload(previewRecord)}>
+                下载文件
+              </Button>
+            )}
+          </Space>
+        }
+      >
+        <Spin loading={previewLoading} style={{ width: '100%' }}>
+          {!previewLoading && (
+            <pre className="script-preview__code">{previewContent || '文件内容为空'}</pre>
+          )}
         </Spin>
       </Drawer>
     </div>

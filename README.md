@@ -9,7 +9,7 @@
 当前侧边栏包含三个业务菜单：
 
 - **测试用例**：维护纯业务用例，复用 Arco 原生表格、抽屉、表单和 Statistic 组件；
-- **脚本资产**：维护 Playwright 脚本资产，脚本通过 `test_case_id` 关联用例；
+- **脚本资产**：上传、下载、预览和覆盖 Playwright 脚本文件，通过多对多关联复用于多个测试用例；
 - **个人中心**：账号资料、安全设置与通知偏好。
 
 业务用例与脚本资产按后端新模型彻底拆分，界面上不展示任何技术 UUID。
@@ -41,7 +41,7 @@ npm run preview
 | --- | --- | --- | --- |
 | `/` | 重定向 | — | 进入 `/test-cases` |
 | `/test-cases` | 测试用例 | 显示 | 业务用例 CRUD、筛选与关联脚本入口 |
-| `/test-scripts` | 脚本资产 | 显示 | 脚本资产 CRUD、用例关联与源码查看 |
+| `/test-scripts` | 脚本资产 | 显示 | 脚本文件上传/下载/预览、用例多选绑定 |
 | `/profile` | 个人中心 | 显示 | 资料、安全与通知设置 |
 | `/login` | 登录页 | 隐藏 | 全屏示例登录页 |
 | `/404` 与 `*` | 404 | — | 未匹配路径兜底 |
@@ -80,20 +80,26 @@ npm run preview
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
+| `POST` | `/api/v1/test-scripts/upload` | multipart 上传文件并创建脚本，可绑定多个用例 |
 | `GET` | `/api/v1/test-scripts` | 分页查询；支持 keyword / script_type / test_case_id / case_no |
-| `GET` | `/api/v1/test-scripts/{script_id}` | 脚本详情 |
-| `POST` | `/api/v1/test-scripts` | 新增脚本资产 |
-| `PUT` | `/api/v1/test-scripts/{script_id}` | 修改脚本，revision 自动 +1 |
-| `DELETE` | `/api/v1/test-scripts/{script_id}` | 删除脚本 |
+| `GET` | `/api/v1/test-scripts/{script_id}` | 脚本详情与当前文件元数据 |
+| `PUT` | `/api/v1/test-scripts/{script_id}` | 修改名称、类型、业务版本和备注 |
+| `PUT` | `/api/v1/test-scripts/{script_id}/file` | 上传新文件覆盖当前文件 |
+| `PUT` | `/api/v1/test-scripts/{script_id}/test-cases` | 全量设置关联用例 |
+| `GET` | `/api/v1/test-scripts/{script_id}/download` | 下载当前文件 |
+| `GET` | `/api/v1/test-scripts/{script_id}/preview` | 预览 UTF-8 文本 |
+| `DELETE` | `/api/v1/test-scripts/{script_id}` | 删除脚本、当前文件和关联关系 |
 
-脚本字段：`test_case_id`、`name`、`script_type`、`content`、`version`、`revision`、`remark`。
+脚本字段：`test_cases`、`name`、`script_type`、`file_id`、`file_name`、`file_ext`、`file_size`、`mime_type`、`file_sha256`、`version`、`remark`、`uploaded_at`。
 
-- 新增脚本通过远程搜索选择所属用例，界面只展示业务编号和用例名称；
-- 列表展示脚本名称、所属用例、脚本类型、版本/修订号和更新时间；
-- 脚本详情展示关联用例摘要、完整源码和脚本备注；
-- 编辑时调用详情接口获取最新数据，保存后 revision 自动递增；
-- 脚本类型支持 Clear；`content` 必填；
-- 不展示任何技术 UUID。
+- 新增脚本时必须选择文件，并至少选择一个测试用例；
+- 用例选择器支持远程搜索和多选；
+- 一个脚本可被多个用例复用；
+- 列表展示脚本名称、关联用例、当前文件、类型和更新时间；
+- 详情展示当前文件信息、SHA-256 和关联用例；
+- 支持在线预览 UTF-8 文本、下载文件、上传新文件覆盖；
+- 覆盖文件不保留历史版本，旧文件在数据库提交成功后删除；
+- 界面不展示任何技术 UUID。
 
 ![新增脚本](docs/preview-test-script-form.png)
 
@@ -101,8 +107,11 @@ npm run preview
 
 [src/api/request.js](src/api/request.js) 已适配 TestingService：
 
-- 请求头自动携带 `Content-Type: application/json`、token 与 `X-Request-Id`；
+- 请求头自动携带 token 与 `X-Request-Id`；
+- JSON 请求由 Axios 自动设置 `Content-Type: application/json`；
+- 脚本上传使用 `FormData`，Axios 自动生成 multipart boundary；
 - 响应成功统一解包 `{ code, msg, data }`；
+- 下载响应保留 Blob 和响应头，用于读取服务端文件名；
 - 业务错误优先显示后端 `msg`；
 - 422 参数校验错误会拼接后端字段级消息；
 - 404、500、超时、断网等 HTTP / 网络异常统一提示。
@@ -168,7 +177,8 @@ TestingPlatform/
 │   │   │   ├── BrandMark.jsx
 │   │   │   ├── PageHeader.jsx
 │   │   │   └── StatusTag.jsx
-│   │   ├── test/TestCaseSelect.jsx # 远程用例选择器
+│   │   ├── test/TestCaseSelect.jsx # 远程用例选择器（支持多选）
+│   │   ├── test/ScriptFilePicker.jsx # 脚本文件选择与校验
 │   │   └── layout/
 │   │       ├── Footer.jsx
 │   │       ├── Header.jsx
