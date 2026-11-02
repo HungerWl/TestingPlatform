@@ -1,19 +1,20 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Card,
   Descriptions,
   Divider,
   Drawer,
+  Empty,
   Form,
   Grid,
   Input,
   Message,
+  Pagination,
   Popconfirm,
   Select,
   Space,
   Spin,
-  Statistic,
   Table,
   Tag,
   Tooltip,
@@ -26,13 +27,18 @@ import {
   IconEdit,
   IconEye,
   IconFile,
+  IconFilter,
+  IconHistory,
+  IconList,
   IconPlus,
   IconRefresh,
   IconSearch,
+  IconStorage,
 } from '@arco-design/web-react/icon';
 import { useLocation, useNavigate } from 'react-router-dom';
 import FormLabel from '../../components/common/FormLabel';
 import PageHeader from '../../components/common/PageHeader';
+import useMediaQuery from '../../hooks/useMediaQuery';
 import ScriptFilePicker from '../../components/test/ScriptFilePicker';
 import TestCaseSelect from '../../components/test/TestCaseSelect';
 import {
@@ -47,6 +53,7 @@ import {
   uploadTestScript,
 } from '../../api/testScripts';
 import { formatDateTime, formatFileSize } from '../../utils/format';
+import './index.scss';
 
 const SCRIPT_TYPES = [
   { value: 'playwright-python', label: 'Playwright · Python', color: 'green' },
@@ -210,6 +217,8 @@ function ScriptFormFields({ editing, lockedCase }) {
 export default function TestScripts() {
   const location = useLocation();
   const navigate = useNavigate();
+  // Descriptions 的 column 只在命中对应断点时生效，这里按屏宽显式给出列数。
+  const isNarrowScreen = useMediaQuery('(max-width: 639px)');
   const [filterForm] = Form.useForm();
   const [form] = Form.useForm();
 
@@ -234,6 +243,14 @@ export default function TestScripts() {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewRecord, setPreviewRecord] = useState(null);
   const [previewContent, setPreviewContent] = useState('');
+
+  const [filtersOpen, setFiltersOpen] = useState(true);
+
+  // 表格最大高度：按“视口剩余空间”动态计算，让表体内部滚动、表头与分页常驻可见。
+  const boardRef = useRef(null);
+  const [tableViewportHeight, setTableViewportHeight] = useState(() =>
+    typeof window === 'undefined' ? 420 : Math.max(window.innerHeight - 560, 320),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -297,6 +314,57 @@ export default function TestScripts() {
     () => rows.reduce((sum, item) => sum + (Number(item.file_size) || 0), 0),
     [rows],
   );
+
+  const activeFilterCount = useMemo(
+    () => [query.keyword, query.scriptType, query.caseNo].filter(Boolean).length,
+    [query.keyword, query.scriptType, query.caseNo],
+  );
+
+  /**
+   * 计算表格可用的最大高度：
+   * 视口高度 - 卡片顶部位置 - 卡片头 - 表头 - 分页栏 - 底部留白。
+   * 表头高度取 Arco 实际渲染值（表头与表体分离后才有），拿不到时给默认值。
+   */
+  useEffect(() => {
+    let frame = 0;
+
+    const measure = () => {
+      const board = boardRef.current;
+      if (!board) return;
+
+      const boardTop = board.getBoundingClientRect().top + window.scrollY;
+      const headHeight = board.querySelector('.tsv2-board__head')?.offsetHeight || 48;
+      const tableHeadHeight = board.querySelector('.arco-table-header')?.offsetHeight || 41;
+      const footHeight = board.querySelector('.tsv2-board__foot')?.offsetHeight || 52;
+
+      // 同时扣掉内容区下内边距与全局页脚，保证页面总高不超过视口（避免出现页面滚动条）。
+      const inner = document.querySelector('.tp-content__inner');
+      const innerPaddingBottom = inner ? parseFloat(getComputedStyle(inner).paddingBottom) || 0 : 0;
+      const footerHeight = document.querySelector('.tp-footer')?.offsetHeight || 0;
+
+      const available =
+        window.innerHeight -
+        boardTop -
+        headHeight -
+        tableHeadHeight -
+        footHeight -
+        innerPaddingBottom -
+        footerHeight -
+        8;
+
+      setTableViewportHeight(Math.max(Math.round(available), 240));
+    };
+
+    measure();
+    // 首帧表头可能尚未渲染，下一帧再校准一次。
+    frame = window.requestAnimationFrame(measure);
+    window.addEventListener('resize', measure);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', measure);
+    };
+  }, [rows.length, loading, filtersOpen]);
 
   const handleSearch = (values) => {
     const nextCaseNo = values.case_no?.trim() || '';
@@ -493,9 +561,13 @@ export default function TestScripts() {
   };
 
   const detailCaseTags = (detail?.test_cases || []).map((item) => (
-    <Tag key={item.id} color="arcoblue">
-      {item.case_no} · {item.name}
-    </Tag>
+    <Tooltip key={item.id} content={`${item.case_no} · ${item.name}`}>
+      <Tag color="arcoblue">
+        <span className="tsv-detail__case-text">
+          {item.case_no} · {item.name}
+        </span>
+      </Tag>
+    </Tooltip>
   ));
 
   const columns = [
@@ -526,17 +598,13 @@ export default function TestScripts() {
       dataIndex: 'file_name',
       width: 230,
       render: (value, record) => (
-        <Space size={6} style={{ maxWidth: '100%' }}>
-          <IconFile />
-          <Space direction="vertical" size={0} style={{ minWidth: 0 }}>
-            <Typography.Text ellipsis={{ showTooltip: true }} style={{ maxWidth: 170 }}>
-              {value}
-            </Typography.Text>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {formatFileSize(record.file_size)}
-            </Typography.Text>
-          </Space>
-        </Space>
+        <span className="tsv-file">
+          <IconFile className="tsv-file__icon" />
+          <span className="tsv-file__name" title={value}>
+            {value}
+          </span>
+          <span className="tsv-file__size">- {formatFileSize(record.file_size)}</span>
+        </span>
       ),
     },
     {
@@ -606,15 +674,15 @@ export default function TestScripts() {
     },
   ];
 
-  const statistics = [
-    { title: '脚本总数', value: total, suffix: '个' },
-    { title: '本页记录', value: rows.length, suffix: '个' },
-    { title: '本页文件大小', value: formatFileSize(pageFileSize), suffix: '' },
-    { title: '总页数', value: pages, suffix: '页' },
+  const metrics = [
+    { label: '脚本总数', value: total, unit: '个', icon: IconCode },
+    { label: '本页记录', value: rows.length, unit: '个', icon: IconFile },
+    { label: '本页文件大小', value: formatFileSize(pageFileSize), unit: '', icon: IconStorage },
+    { label: '总页数', value: pages, unit: '页', icon: IconHistory },
   ];
 
   return (
-    <div className="tp-page space-y-4">
+    <div className="tp-page tsv2">
       <PageHeader
         eyebrow="SCRIPT ASSETS / 02"
         meta={`TOTAL ${total} SCRIPTS · PAGE ${query.page}/${pages || 1}`}
@@ -625,6 +693,13 @@ export default function TestScripts() {
             <Button icon={<IconRefresh />} onClick={() => setRefreshKey((key) => key + 1)}>
               刷新
             </Button>
+            <Button
+              icon={<IconFilter />}
+              type={filtersOpen ? 'secondary' : 'default'}
+              onClick={() => setFiltersOpen((value) => !value)}
+            >
+              {filtersOpen ? '收起筛选' : '展开筛选'}
+            </Button>
             <Button type="primary" icon={<IconPlus />} onClick={openCreate}>
               上传脚本
             </Button>
@@ -632,30 +707,42 @@ export default function TestScripts() {
         }
       />
 
-      <Grid.Row gutter={16}>
-        {statistics.map((item) => (
-          <Grid.Col key={item.title} xs={24} sm={12} xl={6}>
-            <Card>
-              <Statistic
-                title={item.title}
-                value={item.value}
-                suffix={item.suffix}
-                groupSeparator={typeof item.value === 'number'}
-              />
-            </Card>
-          </Grid.Col>
-        ))}
-      </Grid.Row>
+      <div className="tsv2-metrics">
+        {metrics.map((item) => {
+          const Icon = item.icon;
+          return (
+            <span key={item.label} className="tsv2-metric">
+              <span className="tsv2-metric__icon">
+                <Icon />
+              </span>
+              {item.label}：
+              <strong>{item.value}</strong>
+              {item.unit}
+            </span>
+          );
+        })}
+      </div>
 
-      <Card title="筛选条件">
-        <Form
-          form={filterForm}
-          layout="vertical"
-          initialValues={{ keyword: '', script_type: undefined, case_no: '' }}
-          onSubmit={handleSearch}
-        >
-          <Grid.Row gutter={16}>
-            <Grid.Col xs={24} md={10}>
+      <div className={`tsv2-workspace${filtersOpen ? '' : ' is-filters-hidden'}`}>
+        <aside className="tsv2-aside" aria-label="筛选条件">
+          <header className="tsv2-aside__head">
+            <span className="tsv2-aside__title">
+              <IconFilter />
+              筛选条件
+              {activeFilterCount > 0 && <span className="tp-filter-count">{activeFilterCount}</span>}
+            </span>
+            <Button type="text" onClick={handleReset}>
+              重置
+            </Button>
+          </header>
+
+          <div className="tsv2-aside__body">
+            <Form
+              form={filterForm}
+              layout="vertical"
+              initialValues={{ keyword: '', script_type: undefined, case_no: '' }}
+              onSubmit={handleSearch}
+            >
               <Form.Item label="脚本名称" field="keyword">
                 <Input
                   allowClear
@@ -664,13 +751,9 @@ export default function TestScripts() {
                   onPressEnter={() => filterForm.submit()}
                 />
               </Form.Item>
-            </Grid.Col>
-            <Grid.Col xs={24} md={7}>
               <Form.Item label="脚本类型" field="script_type">
                 <Select allowClear placeholder="全部类型" options={SCRIPT_TYPES} />
               </Form.Item>
-            </Grid.Col>
-            <Grid.Col xs={24} md={7}>
               <Form.Item label="关联用例编号" field="case_no">
                 <Input
                   allowClear
@@ -678,40 +761,78 @@ export default function TestScripts() {
                   onPressEnter={() => filterForm.submit()}
                 />
               </Form.Item>
-            </Grid.Col>
-          </Grid.Row>
-          <Space>
-            <Button htmlType="submit" type="primary">
-              查询
-            </Button>
-            <Button onClick={handleReset}>重置</Button>
-          </Space>
-        </Form>
-      </Card>
 
-      <Card
-        title="脚本列表"
-        extra={<Typography.Text type="secondary">共 {total} 个脚本</Typography.Text>}
-      >
-        <Table
-          rowKey="id"
-          columns={columns}
-          data={rows}
-          loading={loading}
-          scroll={{ x: 950 }}
-          pagination={{
-            current: query.page,
-            pageSize: query.pageSize,
-            total,
-            showTotal: true,
-            showJumper: true,
-            sizeCanChange: true,
-            sizeOptions: [10, 20, 50],
-            onChange: (page, pageSize) =>
-              setQuery((previous) => ({ ...previous, page, pageSize })),
-          }}
-        />
-      </Card>
+              <div className="tsv2-aside__actions">
+                <Button htmlType="submit" type="primary" long>
+                  查询
+                </Button>
+                <Button onClick={handleReset} long>
+                  清空
+                </Button>
+              </div>
+            </Form>
+          </div>
+        </aside>
+
+        <section className="tsv2-board" ref={boardRef} aria-label="脚本列表">
+          <header className="tsv2-board__head">
+            <span className="tsv2-board__title">
+              <IconList />
+              脚本列表
+              <span className="tp-chip tp-chip--muted">
+                第 {query.page} / {pages || 1} 页
+              </span>
+            </span>
+            <span className="tsv2-board__count">共 {total} 个脚本</span>
+          </header>
+
+          {loading || rows.length > 0 ? (
+            <>
+              <div className="tsv2-board__body">
+                <Table
+                  rowKey="id"
+                  columns={columns}
+                  data={rows}
+                  loading={loading}
+                  scroll={{ x: 950, y: tableViewportHeight }}
+                  pagination={false}
+                />
+              </div>
+
+              <footer className="tsv2-board__foot">
+                <Pagination
+                  current={query.page}
+                  pageSize={query.pageSize}
+                  total={total}
+                  showTotal
+                  showJumper
+                  sizeCanChange
+                  sizeOptions={[10, 20, 50]}
+                  onChange={(page, pageSize) =>
+                    setQuery((previous) => ({ ...previous, page, pageSize }))
+                  }
+                />
+              </footer>
+            </>
+          ) : (
+            <div className="tsv2-empty">
+              <Empty
+                description={
+                  activeFilterCount > 0
+                    ? '未找到匹配的脚本，试试清空筛选条件'
+                    : '还没有脚本，上传第一个脚本开始管理'
+                }
+              />
+              <Space>
+                <Button type="primary" icon={<IconPlus />} onClick={openCreate}>
+                  上传脚本
+                </Button>
+                {activeFilterCount > 0 && <Button onClick={handleReset}>清空筛选</Button>}
+              </Space>
+            </div>
+          )}
+        </section>
+      </div>
 
       <Drawer
         title={editing ? '编辑脚本资产' : '上传脚本资产'}
@@ -775,37 +896,45 @@ export default function TestScripts() {
                 </Space>
               </div>
 
-              <Descriptions
-                column={{ xs: 1, sm: 2 }}
-                border
-                data={[
-                  {
-                    label: '关联用例',
-                    value: detailCaseTags.length ? (
-                      <Space wrap size={[4, 4]}>{detailCaseTags}</Space>
-                    ) : (
-                      '—'
-                    ),
-                  },
-                  { label: '文件名', value: detail.file_name },
-                  { label: '文件大小', value: formatFileSize(detail.file_size) },
-                  { label: 'MIME 类型', value: detail.mime_type },
-                  { label: '业务版本号', value: detail.version },
-                  { label: '文件上传时间', value: formatDateTime(detail.uploaded_at) },
-                  {
-                    label: 'SHA-256',
-                    value: (
-                      <Tooltip content={detail.file_sha256}>
-                        <Typography.Text code>
-                          {detail.file_sha256?.slice(0, 16)}…
-                        </Typography.Text>
-                      </Tooltip>
-                    ),
-                  },
-                  { label: '创建时间', value: formatDateTime(detail.created_at) },
-                  { label: '更新时间', value: formatDateTime(detail.updated_at) },
-                ]}
-              />
+              <div className="tsv-detail__cases">
+                <Typography.Text type="secondary">关联用例</Typography.Text>
+                {detailCaseTags.length ? (
+                  <Space wrap size={[6, 6]}>
+                    {detailCaseTags}
+                  </Space>
+                ) : (
+                  <Typography.Text type="secondary">—</Typography.Text>
+                )}
+              </div>
+
+              <div className="tsv-detail__table">
+                <Descriptions
+                  column={isNarrowScreen ? 1 : 2}
+                  border
+                  data={[
+                    {
+                      label: '文件名',
+                      value: <span className="tsv-detail__text">{detail.file_name}</span>,
+                    },
+                    { label: '文件大小', value: formatFileSize(detail.file_size) },
+                    { label: 'MIME 类型', value: detail.mime_type },
+                    { label: '业务版本号', value: detail.version },
+                    { label: '文件上传时间', value: formatDateTime(detail.uploaded_at) },
+                    {
+                      label: 'SHA-256',
+                      value: (
+                        <Tooltip content={detail.file_sha256}>
+                          <Typography.Text code>
+                            {detail.file_sha256?.slice(0, 16)}…
+                          </Typography.Text>
+                        </Tooltip>
+                      ),
+                    },
+                    { label: '创建时间', value: formatDateTime(detail.created_at) },
+                    { label: '更新时间', value: formatDateTime(detail.updated_at) },
+                  ]}
+                />
+              </div>
 
               <div className="space-y-2">
                 <Typography.Text type="secondary">脚本备注</Typography.Text>

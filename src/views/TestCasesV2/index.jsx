@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Descriptions,
   Divider,
   Drawer,
+  Empty,
   Form,
   Grid,
   Input,
@@ -207,6 +208,12 @@ export default function TestCasesV2() {
 
   const [filtersOpen, setFiltersOpen] = useState(true);
 
+  // 表格最大高度：按“视口剩余空间”动态计算，让表体内部滚动、表头与分页常驻可见。
+  const boardRef = useRef(null);
+  const [tableViewportHeight, setTableViewportHeight] = useState(() =>
+    typeof window === 'undefined' ? 420 : Math.max(window.innerHeight - 560, 320),
+  );
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -247,6 +254,52 @@ export default function TestCasesV2() {
     () => [query.keyword, query.systemName, query.priority].filter(Boolean).length,
     [query.keyword, query.systemName, query.priority],
   );
+
+  /**
+   * 计算表格可用的最大高度：
+   * 视口高度 - 卡片顶部位置 - 卡片头 - 表头 - 分页栏 - 底部留白。
+   * 表头高度取 Arco 实际渲染值（表头与表体分离后才有），拿不到时给默认值。
+   */
+  useEffect(() => {
+    let frame = 0;
+
+    const measure = () => {
+      const board = boardRef.current;
+      if (!board) return;
+
+      const boardTop = board.getBoundingClientRect().top + window.scrollY;
+      const headHeight = board.querySelector('.tcv2-board__head')?.offsetHeight || 48;
+      const tableHeadHeight = board.querySelector('.arco-table-header')?.offsetHeight || 41;
+      const footHeight = board.querySelector('.tcv2-board__foot')?.offsetHeight || 52;
+
+      // 同时扣掉内容区下内边距与全局页脚，保证页面总高不超过视口（避免出现页面滚动条）。
+      const inner = document.querySelector('.tp-content__inner');
+      const innerPaddingBottom = inner ? parseFloat(getComputedStyle(inner).paddingBottom) || 0 : 0;
+      const footerHeight = document.querySelector('.tp-footer')?.offsetHeight || 0;
+
+      const available =
+        window.innerHeight -
+        boardTop -
+        headHeight -
+        tableHeadHeight -
+        footHeight -
+        innerPaddingBottom -
+        footerHeight -
+        8;
+
+      setTableViewportHeight(Math.max(Math.round(available), 240));
+    };
+
+    measure();
+    // 首帧表头可能尚未渲染，下一帧再校准一次。
+    frame = window.requestAnimationFrame(measure);
+    window.addEventListener('resize', measure);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener('resize', measure);
+    };
+  }, [rows.length, loading, filtersOpen]);
 
   const handleSearch = (values) => {
     setQuery((previous) => ({
@@ -568,7 +621,7 @@ export default function TestCasesV2() {
           </div>
         </aside>
 
-        <section className="tcv2-board" aria-label="用例列表">
+        <section className="tcv2-board" ref={boardRef} aria-label="用例列表">
           <header className="tcv2-board__head">
             <span className="tcv2-board__title">
               <IconList />
@@ -580,31 +633,51 @@ export default function TestCasesV2() {
             <span className="tcv2-board__count">共 {total} 条</span>
           </header>
 
-          <div className="tcv2-board__body">
-            <Table
-              rowKey="id"
-              columns={columns}
-              data={rows}
-              loading={loading}
-              scroll={{ x: 920 }}
-              pagination={false}
-            />
-          </div>
+          {loading || rows.length > 0 ? (
+            <>
+              <div className="tcv2-board__body">
+                <Table
+                  rowKey="id"
+                  columns={columns}
+                  data={rows}
+                  loading={loading}
+                  scroll={{ x: 920, y: tableViewportHeight }}
+                  pagination={false}
+                />
+              </div>
 
-          <footer className="tcv2-board__foot">
-            <Pagination
-              current={query.page}
-              pageSize={query.pageSize}
-              total={total}
-              showTotal
-              showJumper
-              sizeCanChange
-              sizeOptions={[10, 20, 50]}
-              onChange={(page, pageSize) =>
-                setQuery((previous) => ({ ...previous, page, pageSize }))
-              }
-            />
-          </footer>
+              <footer className="tcv2-board__foot">
+                <Pagination
+                  current={query.page}
+                  pageSize={query.pageSize}
+                  total={total}
+                  showTotal
+                  showJumper
+                  sizeCanChange
+                  sizeOptions={[10, 20, 50]}
+                  onChange={(page, pageSize) =>
+                    setQuery((previous) => ({ ...previous, page, pageSize }))
+                  }
+                />
+              </footer>
+            </>
+          ) : (
+            <div className="tcv2-empty">
+              <Empty
+                description={
+                  activeFilterCount > 0
+                    ? '未找到匹配的测试用例，试试清空筛选条件'
+                    : '还没有测试用例，创建第一条用例开始维护'
+                }
+              />
+              <Space>
+                <Button type="primary" icon={<IconPlus />} onClick={openCreate}>
+                  新增测试用例
+                </Button>
+                {activeFilterCount > 0 && <Button onClick={handleReset}>清空筛选</Button>}
+              </Space>
+            </div>
+          )}
         </section>
       </div>
 
