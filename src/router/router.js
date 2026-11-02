@@ -11,7 +11,7 @@ import { IconCode, IconFile, IconLock, IconUser } from '@arco-design/web-react/i
  *  - permission  权限标识，没有该权限时菜单自动过滤
  *  - blank       是否使用无侧边栏布局（登录页）
  *
- * 当前菜单：测试用例、脚本资产、个人中心；登录页为隐藏路由。
+ * 当前菜单：测试用例、测试用例v2、脚本资产、个人中心；登录页为隐藏路由。
  */
 export const appRoutes = [
   {
@@ -22,6 +22,16 @@ export const appRoutes = [
       icon: IconFile,
       permission: 'case:view',
       eyebrow: 'TEST LIBRARY / 01',
+    },
+  },
+  {
+    path: '/test-cases-v2',
+    component: lazy(() => import('../views/TestCasesV2')),
+    meta: {
+      title: '测试用例v2',
+      icon: IconFile,
+      permission: 'case:view',
+      eyebrow: 'TEST LIBRARY / 01 · V2',
     },
   },
   {
