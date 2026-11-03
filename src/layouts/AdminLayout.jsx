@@ -17,6 +17,8 @@ export default function AdminLayout() {
   const location = useLocation();
   // 页面快照需要铺满内容区，去掉内容容器自带的 padding 和 max-width。
   const flushContent = location.pathname === '/page-snapshot';
+  // 高密度数据页使用更紧凑的内容边距，给表格留出更多空间。
+  const compactContent = ['/test-cases-v2', '/dictionaries'].includes(location.pathname);
 
   useEffect(() => {
     setMobileOpen(false);
@@ -44,14 +46,18 @@ export default function AdminLayout() {
         />
       )}
 
-      <div className="tp-main">
+      <div className={`tp-main ${compactContent ? 'is-compact' : ''}`.trim()}>
         <Header
           collapsed={collapsed}
           onToggleCollapse={() => setCollapsed((value) => !value)}
           onOpenMobile={() => setMobileOpen(true)}
         />
-        <main className="tp-content">
-          <div className={`tp-content__inner ${flushContent ? 'is-flush' : ''}`.trim()}>
+        <main className={`tp-content ${compactContent ? 'is-compact' : ''}`.trim()}>
+          <div
+            className={`tp-content__inner ${flushContent ? 'is-flush' : ''} ${
+              compactContent ? 'is-compact' : ''
+            }`.trim()}
+          >
             <Outlet />
           </div>
         </main>

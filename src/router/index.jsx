@@ -52,7 +52,8 @@ export default function AppRouter() {
       ))}
 
       <Route element={<AdminLayout />}>
-        <Route index element={<Navigate to="/test-cases" replace />} />
+        <Route index element={<Navigate to="/test-cases-v2" replace />} />
+        <Route path="/test-cases" element={<Navigate to="/test-cases-v2" replace />} />
         {consoleRoutes.map((route) => (
           <Route
             key={route.path}

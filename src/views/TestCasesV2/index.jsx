@@ -4,7 +4,6 @@ import {
   Descriptions,
   Divider,
   Drawer,
-  Empty,
   Form,
   Grid,
   Input,
@@ -20,23 +19,18 @@ import {
   Typography,
 } from '@arco-design/web-react';
 import {
-  IconBook,
   IconCode,
   IconDelete,
   IconEdit,
   IconEye,
-  IconFile,
   IconFilter,
-  IconHistory,
-  IconList,
   IconPlus,
   IconRefresh,
   IconSearch,
-  IconThunderbolt,
 } from '@arco-design/web-react/icon';
 import { useNavigate } from 'react-router-dom';
 import FormLabel from '../../components/common/FormLabel';
-import PageHeader from '../../components/common/PageHeader';
+import { fetchDictionaryOptions } from '../../api/dictionaries';
 import {
   createTestCase,
   deleteTestCase,
@@ -50,11 +44,11 @@ import './index.scss';
 /**
  * 测试用例 V2
  * ------------------------------------------------------------------
- * 与 views/TestCases 共用同一套数据逻辑（查询、增删改、详情），
- * 本页只做布局与视觉的调整：
- *  - 左右布局：左侧为筛选条件，右侧表格为主；
- *  - 统计项改为“图标 + 文字”的轻量信息条，释放纵向空间；
- *  - 筛选面板可收起，让表格获得最大可视宽度。
+ * 与字典管理保持一致的高密度布局：
+ *  - 统计文本 + 工具栏；
+ *  - 横向筛选条；
+ *  - 原生 Arco Table 全宽铺满；
+ *  - 不展示大标题、面板标题和卡片标题。
  */
 const PRIORITY_OPTIONS = ['P0', 'P1', 'P2', 'P3'].map((value) => ({
   label: value,
@@ -68,9 +62,15 @@ const PRIORITY_COLOR = {
   P3: 'gray',
 };
 
+const INITIAL_FILTERS = {
+  keyword: '',
+  systemName: undefined,
+  priority: undefined,
+};
+
 const INITIAL_QUERY = {
   page: 1,
-  pageSize: 10,
+  pageSize: 20,
   keyword: '',
   systemName: '',
   priority: '',
@@ -79,7 +79,7 @@ const INITIAL_QUERY = {
 const INITIAL_FORM = {
   case_no: '',
   name: '',
-  system_name: '',
+  system_name: undefined,
   priority: undefined,
   precondition: '',
   test_steps: '',
@@ -97,7 +97,7 @@ function PriorityTag({ priority }) {
   return <Tag color={PRIORITY_COLOR[priority] || 'gray'}>{priority}</Tag>;
 }
 
-function CaseFormFields() {
+function CaseFormFields({ systemOptions }) {
   return (
     <>
       <Divider orientation="left">基本信息</Divider>
@@ -130,12 +130,9 @@ function CaseFormFields() {
           <Form.Item
             label={<FormLabel required>所属系统</FormLabel>}
             field="system_name"
-            rules={[
-              { required: true, message: '请输入所属系统' },
-              { maxLength: 128, message: '最多 128 个字符' },
-            ]}
+            rules={[{ required: true, message: '请选择所属系统' }]}
           >
-            <Input placeholder="例如：订单系统" maxLength={128} showWordLimit />
+            <Select placeholder="选择所属系统" options={systemOptions} />
           </Form.Item>
         </Grid.Col>
         <Grid.Col xs={24} md={12}>
@@ -188,15 +185,17 @@ function CaseFormFields() {
 
 export default function TestCasesV2() {
   const navigate = useNavigate();
-  const [filterForm] = Form.useForm();
   const [form] = Form.useForm();
 
   const [query, setQuery] = useState(INITIAL_QUERY);
+  const [filterDraft, setFilterDraft] = useState(INITIAL_FILTERS);
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [filtersOpen, setFiltersOpen] = useState(true);
+  const [systemDictionary, setSystemDictionary] = useState([]);
 
   const [formVisible, setFormVisible] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -206,13 +205,31 @@ export default function TestCasesV2() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState(null);
 
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  const sheetBodyRef = useRef(null);
+  const [tableViewportHeight, setTableViewportHeight] = useState(400);
 
-  // 表格最大高度：按“视口剩余空间”动态计算，让表体内部滚动、表头与分页常驻可见。
-  const boardRef = useRef(null);
-  const [tableViewportHeight, setTableViewportHeight] = useState(() =>
-    typeof window === 'undefined' ? 420 : Math.max(window.innerHeight - 560, 320),
-  );
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchDictionaryOptions('system_name')
+      .then((result) => {
+        if (cancelled) return;
+        setSystemDictionary(
+          (result?.items || []).map((item) => ({
+            label: item.label,
+            // test_cases.system_name 存储展示名称，保持与现有用例数据兼容。
+            value: item.label,
+          })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setSystemDictionary([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -245,6 +262,32 @@ export default function TestCasesV2() {
     };
   }, [query, refreshKey]);
 
+  useEffect(() => {
+    const body = sheetBodyRef.current;
+    if (!body) return undefined;
+
+    let frame = 0;
+    const measure = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const headerHeight = body.querySelector('.arco-table-header')?.offsetHeight || 33;
+        const nextHeight = Math.max(Math.round(body.clientHeight - headerHeight), 120);
+        setTableViewportHeight((current) => (current === nextHeight ? current : nextHeight));
+      });
+    };
+
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(body);
+    window.addEventListener('resize', measure);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [filtersOpen]);
+
   const pageHighPriority = useMemo(
     () => rows.filter((item) => item.priority === 'P0' || item.priority === 'P1').length,
     [rows],
@@ -255,64 +298,31 @@ export default function TestCasesV2() {
     [query.keyword, query.systemName, query.priority],
   );
 
-  /**
-   * 计算表格可用的最大高度：
-   * 视口高度 - 卡片顶部位置 - 卡片头 - 表头 - 分页栏 - 底部留白。
-   * 表头高度取 Arco 实际渲染值（表头与表体分离后才有），拿不到时给默认值。
-   */
-  useEffect(() => {
-    let frame = 0;
+  const systemOptions = useMemo(() => {
+    const options = [...systemDictionary];
+    const extraValues = [filterDraft.systemName, editing?.system_name].filter(Boolean);
 
-    const measure = () => {
-      const board = boardRef.current;
-      if (!board) return;
+    for (const value of extraValues) {
+      if (!options.some((item) => item.value === value)) {
+        options.push({ label: value, value });
+      }
+    }
 
-      const boardTop = board.getBoundingClientRect().top + window.scrollY;
-      const headHeight = board.querySelector('.tcv2-board__head')?.offsetHeight || 48;
-      const tableHeadHeight = board.querySelector('.arco-table-header')?.offsetHeight || 41;
-      const footHeight = board.querySelector('.tcv2-board__foot')?.offsetHeight || 52;
+    return options;
+  }, [editing?.system_name, filterDraft.systemName, systemDictionary]);
 
-      // 同时扣掉内容区下内边距与全局页脚，保证页面总高不超过视口（避免出现页面滚动条）。
-      const inner = document.querySelector('.tp-content__inner');
-      const innerPaddingBottom = inner ? parseFloat(getComputedStyle(inner).paddingBottom) || 0 : 0;
-      const footerHeight = document.querySelector('.tp-footer')?.offsetHeight || 0;
-
-      const available =
-        window.innerHeight -
-        boardTop -
-        headHeight -
-        tableHeadHeight -
-        footHeight -
-        innerPaddingBottom -
-        footerHeight -
-        8;
-
-      setTableViewportHeight(Math.max(Math.round(available), 240));
-    };
-
-    measure();
-    // 首帧表头可能尚未渲染，下一帧再校准一次。
-    frame = window.requestAnimationFrame(measure);
-    window.addEventListener('resize', measure);
-
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener('resize', measure);
-    };
-  }, [rows.length, loading, filtersOpen]);
-
-  const handleSearch = (values) => {
+  const applyFilters = () => {
     setQuery((previous) => ({
       ...previous,
       page: 1,
-      keyword: values.keyword?.trim() || '',
-      systemName: values.system_name?.trim() || '',
-      priority: values.priority || '',
+      keyword: filterDraft.keyword.trim(),
+      systemName: filterDraft.systemName?.trim() || '',
+      priority: filterDraft.priority || '',
     }));
   };
 
   const handleReset = () => {
-    filterForm.resetFields();
+    setFilterDraft(INITIAL_FILTERS);
     setQuery({ ...INITIAL_QUERY });
     setRefreshKey((key) => key + 1);
   };
@@ -424,14 +434,28 @@ export default function TestCasesV2() {
 
   const columns = [
     {
+      title: '#',
+      dataIndex: '__index',
+      width: 48,
+      align: 'center',
+      fixed: 'left',
+      render: (_, __, index) => (
+        <Typography.Text type="secondary">
+          {(query.page - 1) * query.pageSize + index + 1}
+        </Typography.Text>
+      ),
+    },
+    {
       title: '用例名称 / 业务编号',
       dataIndex: 'name',
-      width: 285,
+      width: 290,
       render: (value, record) => (
-        <Space direction="vertical" size={0}>
-          <Typography.Text>{value}</Typography.Text>
-          <Typography.Text type="secondary">{record.case_no}</Typography.Text>
-        </Space>
+        <div className="tcv2-name-cell">
+          <span className="tcv2-name" title={value}>
+            {value}
+          </span>
+          <span className="tcv2-case-no">{record.case_no}</span>
+        </div>
       ),
     },
     {
@@ -443,19 +467,19 @@ export default function TestCasesV2() {
     {
       title: '优先级',
       dataIndex: 'priority',
-      width: 90,
+      width: 84,
       render: (value) => <PriorityTag priority={value} />,
     },
     {
       title: '关联脚本',
       dataIndex: 'script_count',
-      width: 100,
+      width: 92,
       render: (value) => <Tag color={value > 0 ? 'arcoblue' : 'gray'}>{value} 个</Tag>,
     },
     {
       title: '创建时间',
       dataIndex: 'created_at',
-      width: 155,
+      width: 150,
       render: (value) => (
         <Typography.Text type="secondary">{formatDateTime(value)}</Typography.Text>
       ),
@@ -463,7 +487,7 @@ export default function TestCasesV2() {
     {
       title: '操作',
       dataIndex: 'action',
-      width: 150,
+      width: 116,
       fixed: 'right',
       render: (_, record) => (
         <Space size={0}>
@@ -517,169 +541,131 @@ export default function TestCasesV2() {
   ];
 
   const metrics = [
-    { label: '用例总数', value: total, unit: '条', icon: IconBook },
-    { label: '本页记录', value: rows.length, unit: '条', icon: IconFile },
-    {
-      label: '本页高优',
-      value: pageHighPriority,
-      unit: '条',
-      icon: IconThunderbolt,
-      accent: pageHighPriority > 0,
-    },
-    { label: '总页数', value: pages, unit: '页', icon: IconHistory },
+    { label: '用例总数', value: total, unit: '条' },
+    { label: '本页记录', value: rows.length, unit: '条' },
+    { label: '本页高优', value: pageHighPriority, unit: '条', accent: pageHighPriority > 0 },
+    { label: '总页数', value: pages, unit: '页' },
   ];
 
   return (
     <div className="tp-page tcv2">
-      <PageHeader
-        eyebrow="TEST LIBRARY / 01 · V2"
-        meta={`TOTAL ${total} CASES · PAGE ${query.page}/${pages || 1}`}
-        title="测试用例v2"
-        description="左右分栏版测试用例管理：左侧集中筛选条件，右侧专注数据浏览。"
-        actions={
-          <Space>
-            <Button icon={<IconRefresh />} onClick={() => setRefreshKey((key) => key + 1)}>
-              刷新
-            </Button>
-            <Button
-              icon={<IconFilter />}
-              type={filtersOpen ? 'secondary' : 'default'}
-              onClick={() => setFiltersOpen((value) => !value)}
-            >
-              {filtersOpen ? '收起筛选' : '展开筛选'}
-            </Button>
-            <Button type="primary" icon={<IconPlus />} onClick={openCreate}>
-              新增测试用例
-            </Button>
-          </Space>
-        }
-      />
-
-      <div className="tcv2-metrics">
-        {metrics.map((item) => {
-          const Icon = item.icon;
-          return (
+      <div className="tcv2-toolbar">
+        <div className="tcv2-metrics">
+          {metrics.map((item) => (
             <span
               key={item.label}
               className={`tcv2-metric${item.accent ? ' is-accent' : ''}`}
             >
-              <span className="tcv2-metric__icon">
-                <Icon />
-              </span>
-              {item.label}：
-              <strong>{item.value}</strong>
+              {item.label}：<strong>{item.value}</strong>
               {item.unit}
             </span>
-          );
-        })}
+          ))}
+        </div>
+
+        <Space size={6} wrap>
+          <Button
+            size="small"
+            icon={<IconRefresh />}
+            onClick={() => setRefreshKey((key) => key + 1)}
+          >
+            刷新
+          </Button>
+          <Button
+            size="small"
+            icon={<IconFilter />}
+            type={filtersOpen ? 'secondary' : 'default'}
+            onClick={() => setFiltersOpen((value) => !value)}
+          >
+            {filtersOpen ? '收起筛选' : '筛选'}
+            {activeFilterCount > 0 ? ` ${activeFilterCount}` : ''}
+          </Button>
+          <Button size="small" type="primary" icon={<IconPlus />} onClick={openCreate}>
+            新增用例
+          </Button>
+        </Space>
       </div>
 
-      <div className={`tcv2-workspace${filtersOpen ? '' : ' is-filters-hidden'}`}>
-        <aside className="tcv2-aside" aria-label="筛选条件">
-          <header className="tcv2-aside__head">
-            <span className="tcv2-aside__title">
-              <IconFilter />
-              筛选条件
-              {activeFilterCount > 0 && <span className="tp-filter-count">{activeFilterCount}</span>}
-            </span>
-            <Button type="text" onClick={handleReset}>
-              重置
-            </Button>
-          </header>
-
-          <div className="tcv2-aside__body">
-            <Form
-              form={filterForm}
-              layout="vertical"
-              initialValues={{ keyword: '', system_name: '', priority: undefined }}
-              onSubmit={handleSearch}
-            >
-              <Form.Item label="名称 / 业务编号" field="keyword">
-                <Input
-                  allowClear
-                  prefix={<IconSearch />}
-                  placeholder="搜索用例名称或业务编号"
-                  onPressEnter={() => filterForm.submit()}
-                />
-              </Form.Item>
-              <Form.Item label="所属系统" field="system_name">
-                <Input allowClear placeholder="例如：订单系统" />
-              </Form.Item>
-              <Form.Item label="优先级" field="priority">
-                <Select allowClear placeholder="全部优先级" options={PRIORITY_OPTIONS} />
-              </Form.Item>
-
-              <div className="tcv2-aside__actions">
-                <Button htmlType="submit" type="primary" long>
-                  查询
-                </Button>
-                <Button onClick={handleReset} long>
-                  清空
-                </Button>
-              </div>
-            </Form>
+      {filtersOpen && (
+        <div className="tcv2-filters">
+          <div className="tcv2-filter-field">
+            <span className="tcv2-filter-label">名称 / 业务编号</span>
+            <Input
+              allowClear
+              prefix={<IconSearch />}
+              placeholder="搜索用例名称或业务编号"
+              value={filterDraft.keyword}
+              onChange={(value) =>
+                setFilterDraft((previous) => ({ ...previous, keyword: value }))
+              }
+              onPressEnter={applyFilters}
+            />
           </div>
-        </aside>
+          <div className="tcv2-filter-field">
+            <span className="tcv2-filter-label">所属系统</span>
+            <Select
+              allowClear
+              placeholder="全部系统"
+              options={systemOptions}
+              value={filterDraft.systemName}
+              onChange={(value) =>
+                setFilterDraft((previous) => ({ ...previous, systemName: value }))
+              }
+            />
+          </div>
+          <div className="tcv2-filter-field tcv2-filter-field--priority">
+            <span className="tcv2-filter-label">优先级</span>
+            <Select
+              allowClear
+              placeholder="全部优先级"
+              options={PRIORITY_OPTIONS}
+              value={filterDraft.priority}
+              onChange={(value) =>
+                setFilterDraft((previous) => ({ ...previous, priority: value }))
+              }
+            />
+          </div>
+          <div className="tcv2-filter-actions">
+            <Button size="small" type="primary" onClick={applyFilters}>
+              查询
+            </Button>
+            <Button size="small" onClick={handleReset}>
+              清空
+            </Button>
+          </div>
+        </div>
+      )}
 
-        <section className="tcv2-board" ref={boardRef} aria-label="用例列表">
-          <header className="tcv2-board__head">
-            <span className="tcv2-board__title">
-              <IconList />
-              用例列表
-              <span className="tp-chip tp-chip--muted">
-                第 {query.page} / {pages || 1} 页
-              </span>
-            </span>
-            <span className="tcv2-board__count">共 {total} 条</span>
-          </header>
+      <section className="tcv2-sheet" aria-label="用例列表">
+        <div className="tcv2-sheet__body" ref={sheetBodyRef}>
+          <Table
+            rowKey="id"
+            columns={columns}
+            data={rows}
+            loading={loading}
+            size="small"
+            border
+            borderCell
+            scroll={{ x: 940, y: tableViewportHeight }}
+            pagination={false}
+          />
+        </div>
 
-          {loading || rows.length > 0 ? (
-            <>
-              <div className="tcv2-board__body">
-                <Table
-                  rowKey="id"
-                  columns={columns}
-                  data={rows}
-                  loading={loading}
-                  scroll={{ x: 920, y: tableViewportHeight }}
-                  pagination={false}
-                />
-              </div>
-
-              <footer className="tcv2-board__foot">
-                <Pagination
-                  current={query.page}
-                  pageSize={query.pageSize}
-                  total={total}
-                  showTotal
-                  showJumper
-                  sizeCanChange
-                  sizeOptions={[10, 20, 50]}
-                  onChange={(page, pageSize) =>
-                    setQuery((previous) => ({ ...previous, page, pageSize }))
-                  }
-                />
-              </footer>
-            </>
-          ) : (
-            <div className="tcv2-empty">
-              <Empty
-                description={
-                  activeFilterCount > 0
-                    ? '未找到匹配的测试用例，试试清空筛选条件'
-                    : '还没有测试用例，创建第一条用例开始维护'
-                }
-              />
-              <Space>
-                <Button type="primary" icon={<IconPlus />} onClick={openCreate}>
-                  新增测试用例
-                </Button>
-                {activeFilterCount > 0 && <Button onClick={handleReset}>清空筛选</Button>}
-              </Space>
-            </div>
-          )}
-        </section>
-      </div>
+        <footer className="tcv2-sheet__foot">
+          <span className="tcv2-sheet__count">共 {total} 条</span>
+          <Pagination
+            size="small"
+            current={query.page}
+            pageSize={query.pageSize}
+            total={total}
+            showJumper
+            sizeCanChange
+            sizeOptions={[20, 50, 100]}
+            onChange={(page, pageSize) =>
+              setQuery((previous) => ({ ...previous, page, pageSize }))
+            }
+          />
+        </footer>
+      </section>
 
       <Drawer
         title={editing ? '编辑测试用例' : '新增测试用例'}
@@ -702,7 +688,7 @@ export default function TestCasesV2() {
           onSubmit={handleSubmit}
           requiredSymbol={false}
         >
-          <CaseFormFields />
+          <CaseFormFields systemOptions={systemOptions} />
         </Form>
       </Drawer>
 

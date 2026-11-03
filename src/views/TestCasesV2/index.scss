@@ -1,28 +1,41 @@
 /* =========================================================
-   测试用例 V2 —— 仅布局与样式
+   测试用例 V2 —— 与字典管理一致的高密度列表
    ---------------------------------------------------------
-   左侧筛选 + 右侧列表的左右分栏，统计信息以文字 + icon 呈现。
-   仅为自定义容器编写样式，不覆盖 Arco 组件库的原生样式。
+   只给自定义布局壳写样式；Arco Table/Input/Button 保持原生样式。
+   表格密度通过 Arco 原生 size="small" / border / borderCell 实现。
    ========================================================= */
 
 .tcv2 {
   display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: 14px;
+  gap: 8px;
 }
 
-/* ---------- 轻量统计信息条 ---------- */
-.tcv2-metrics {
+/* ---------- 顶部工具栏：统计文本 + 操作 ---------- */
+.tcv2-toolbar {
   display: flex;
+  min-height: 28px;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  padding-left: 2px;
+  justify-content: space-between;
+  gap: 8px 14px;
+  padding: 0 2px;
+}
+
+.tcv2-metrics {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  padding-left: 1px;
 }
 
 .tcv2-metric {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 3px;
   font-size: 12px;
   line-height: 20px;
@@ -43,23 +56,16 @@
   content: "";
 }
 
-.tcv2-metric__icon {
-  display: inline-flex;
-  align-items: center;
-  font-size: 13px;
-  color: #8d8a7c;
-}
-
 .tcv2-metric strong {
+  color: var(--tp-ink);
   font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
-  color: var(--tp-ink);
 }
 
-.tcv2-metric.is-accent .tcv2-metric__icon {
+.tcv2-metric.is-accent {
   color: var(--tp-ember);
 }
 
@@ -67,159 +73,122 @@
   color: var(--tp-ember);
 }
 
-/* ---------- 左右分栏：左筛选 / 右列表（等高拉伸） ---------- */
-.tcv2-workspace {
+/* ---------- 横向筛选条 ---------- */
+.tcv2-filters {
   display: flex;
-  align-items: stretch;
-  gap: 14px;
-  min-width: 0;
-}
-
-/* ---------- 左侧筛选面板 ---------- */
-.tcv2-aside {
-  width: 268px;
-  flex: 0 0 268px;
-  overflow: hidden;
-  border: 1px solid var(--tp-line);
-  border-radius: 16px;
-  background: var(--tp-card);
-  box-shadow: 0 1px 0 rgba(16, 18, 15, 0.03), 0 22px 48px -46px rgba(16, 18, 15, 0.5);
-}
-
-.tcv2-aside__head {
-  display: flex;
-  height: 48px;
-  align-items: center;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  align-items: flex-end;
   gap: 8px;
-  padding: 0 8px 0 14px;
-  border-bottom: 1px solid rgba(221, 215, 201, 0.8);
+  padding: 8px 10px;
+  border: 1px solid var(--tp-line);
+  border-radius: 8px;
+  background: var(--tp-card);
 }
 
-.tcv2-aside__title {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--tp-ink);
+.tcv2-filter-field {
+  display: flex;
+  min-width: 190px;
+  flex: 0 1 280px;
+  flex-direction: column;
+  gap: 3px;
 }
 
-.tcv2-aside__title > svg {
-  font-size: 14px;
+.tcv2-filter-field--priority {
+  min-width: 130px;
+  flex-basis: 150px;
+}
+
+.tcv2-filter-label {
+  padding-left: 1px;
+  font-size: 11px;
+  line-height: 16px;
   color: var(--tp-muted);
 }
 
-.tcv2-aside__body {
-  padding: 14px;
-}
-
-.tcv2-aside__actions {
+.tcv2-filter-actions {
   display: flex;
-  gap: 8px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
 }
 
-/* ---------- 右侧列表面板 ---------- */
-.tcv2-board {
+/* ---------- 表格主体 ---------- */
+.tcv2-sheet {
   display: flex;
   min-width: 0;
-  min-height: 360px;
+  min-height: 250px;
   flex: 1 1 auto;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--tp-line);
-  border-radius: 16px;
+  border-radius: 8px;
   background: var(--tp-card);
-  box-shadow: 0 1px 0 rgba(16, 18, 15, 0.03), 0 22px 48px -46px rgba(16, 18, 15, 0.5);
 }
 
-.tcv2-board__head {
-  display: flex;
-  height: 48px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 0 14px;
-  border-bottom: 1px solid rgba(221, 215, 201, 0.8);
-}
-
-.tcv2-board__title {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--tp-ink);
-}
-
-.tcv2-board__title > svg {
-  font-size: 14px;
-  color: var(--tp-muted);
-}
-
-.tcv2-board__body {
+.tcv2-sheet__body {
   min-width: 0;
   min-height: 0;
   flex: 1;
 }
 
-.tcv2-empty {
+.tcv2-sheet__foot {
   display: flex;
-  flex: 1;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  padding: 40px 20px;
-}
-
-.tcv2-board__foot {
-  display: flex;
+  min-height: 40px;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 8px;
-  padding: 12px 14px;
-  border-top: 1px solid rgba(221, 215, 201, 0.8);
+  padding: 6px 10px;
+  border-top: 1px solid var(--tp-line);
+  background: var(--tp-card);
 }
 
-.tcv2-board__count {
+.tcv2-sheet__count {
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.02em;
   color: var(--tp-muted);
+  white-space: nowrap;
 }
 
-.tcv2-workspace.is-filters-hidden .tcv2-aside {
-  display: none;
+/* ---------- 表格内展示 ---------- */
+.tcv2-name-cell {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
 }
 
-/* 宽屏时面板略宽，表单更舒展 */
-@media (min-width: 1440px) {
-  .tcv2-aside {
-    width: 288px;
-    flex-basis: 288px;
-  }
+.tcv2-name {
+  overflow: hidden;
+  min-width: 0;
+  flex: 0 1 auto;
+  color: var(--tp-ink);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* 窄屏：分栏转为上下结构，筛选面板在上，列表在下 */
-@media (max-width: 1100px) {
-  .tcv2-workspace {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .tcv2-aside {
-    width: 100%;
-    flex: none;
-  }
-
-  .tcv2-board {
-    width: 100%;
-  }
+.tcv2-case-no {
+  flex: 0 0 auto;
+  color: var(--tp-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
-@media (max-width: 639px) {
+/* ---------- 响应式 ---------- */
+@media (max-width: 767px) {
+  .tcv2 {
+    gap: 7px;
+  }
+
+  .tcv2-toolbar {
+    align-items: flex-start;
+  }
+
   .tcv2-metric + .tcv2-metric {
     padding-left: 0;
   }
@@ -229,14 +198,25 @@
   }
 
   .tcv2-metrics {
-    gap: 2px 14px;
+    gap: 1px 14px;
   }
 
-  .tcv2-board__head {
-    padding: 0 10px;
+  .tcv2-filters {
+    padding: 8px;
   }
 
-  .tcv2-board__title .tp-chip {
-    display: none;
+  .tcv2-filter-field,
+  .tcv2-filter-field--priority {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+
+  .tcv2-filter-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .tcv2-sheet__foot {
+    padding: 5px 8px;
   }
 }

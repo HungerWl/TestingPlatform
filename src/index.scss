@@ -241,6 +241,28 @@ a:focus-visible,
   padding: 0;
 }
 
+/* 高密度数据页：字典管理等列表页收紧边距并让表格占满内容区 */
+.tp-main.is-compact {
+  height: 100vh;
+  min-height: 0;
+}
+
+.tp-content.is-compact {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tp-content__inner.is-compact {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  max-width: none;
+  padding: 12px 16px 18px;
+}
+
 @media (min-width: $bp-desktop) {
   .tp-main {
     padding-left: var(--tp-sider);
@@ -693,6 +715,16 @@ a:focus-visible,
   }
   .tp-content__inner {
     padding: 20px 15px 28px;
+  }
+  .tp-main.is-compact {
+    height: auto;
+    min-height: 100vh;
+  }
+  .tp-content.is-compact {
+    overflow: visible;
+  }
+  .tp-content__inner.is-compact {
+    padding: 10px 10px 14px;
   }
   .tp-footer {
     padding: 15px;

@@ -1,5 +1,6 @@
 import { lazy } from 'react';
 import {
+  IconBook,
   IconCamera,
   IconCode,
   IconFile,
@@ -58,6 +59,16 @@ export const appRoutes = [
       icon: IconCode,
       permission: 'script:view',
       eyebrow: 'SCRIPT ASSETS / 02',
+    },
+  },
+  {
+    path: '/dictionaries',
+    component: lazy(() => import('../views/Dictionaries')),
+    meta: {
+      title: '字典管理',
+      icon: IconBook,
+      permission: 'dictionary:view',
+      eyebrow: 'DICTIONARY / 03',
     },
   },
   {
