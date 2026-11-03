@@ -15,6 +15,16 @@ import { IconCode, IconFile, IconLock, IconUser } from '@arco-design/web-react/i
  */
 export const appRoutes = [
   {
+    path: '/profile',
+    component: lazy(() => import('../views/Profile')),
+    meta: {
+      title: '个人中心',
+      icon: IconUser,
+      permission: 'profile:view',
+      eyebrow: 'OPERATOR PROFILE / 03',
+    },
+  },
+  {
     path: '/test-cases',
     component: lazy(() => import('../views/TestCases')),
     meta: {
@@ -42,16 +52,6 @@ export const appRoutes = [
       icon: IconCode,
       permission: 'script:view',
       eyebrow: 'SCRIPT ASSETS / 02',
-    },
-  },
-  {
-    path: '/profile',
-    component: lazy(() => import('../views/Profile')),
-    meta: {
-      title: '个人中心',
-      icon: IconUser,
-      permission: 'profile:view',
-      eyebrow: 'OPERATOR PROFILE / 03',
     },
   },
   {
