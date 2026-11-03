@@ -130,3 +130,27 @@ export async function downloadTestScript(scriptId, fallbackName) {
     ),
   };
 }
+
+/**
+ * 触发一次脚本执行，并下载 Playwright trace.zip。
+ *
+ * trace 由后端 Worker 在内存中生成并流式返回，不落盘、不可重复下载，
+ * 每次点击都会重新执行脚本，因此这里不使用默认的 15s 超时。
+ */
+export async function executeTestScriptTrace(scriptId, { timeoutSeconds } = {}) {
+  const response = await request.post(`${BASE}/${scriptId}/trace`, null, {
+    responseType: 'blob',
+    returnFullResponse: true,
+    timeout: 0,
+    params: timeoutSeconds ? { timeout_seconds: timeoutSeconds } : undefined,
+  });
+
+  return {
+    blob: response.data,
+    fileName: getDownloadFileName(
+      response.headers?.['content-disposition'],
+      'trace.zip',
+    ),
+    traceCount: Number(response.headers?.['x-trace-count'] || 1),
+  };
+}

@@ -235,6 +235,12 @@ a:focus-visible,
   padding: 26px 24px 34px;
 }
 
+/* 页面快照：内容区去边距，让内嵌的 Trace Viewer 铺满整个展示区 */
+.tp-content__inner.is-flush {
+  max-width: none;
+  padding: 0;
+}
+
 @media (min-width: $bp-desktop) {
   .tp-main {
     padding-left: var(--tp-sider);

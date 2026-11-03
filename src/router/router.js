@@ -1,5 +1,11 @@
 import { lazy } from 'react';
-import { IconCode, IconFile, IconLock, IconUser } from '@arco-design/web-react/icon';
+import {
+  IconCamera,
+  IconCode,
+  IconFile,
+  IconLock,
+  IconUser,
+} from '@arco-design/web-react/icon';
 
 /**
  * 全站唯一的路由配置源。
@@ -11,7 +17,7 @@ import { IconCode, IconFile, IconLock, IconUser } from '@arco-design/web-react/i
  *  - permission  权限标识，没有该权限时菜单自动过滤
  *  - blank       是否使用无侧边栏布局（登录页）
  *
- * 当前菜单：测试用例、测试用例v2、脚本资产、个人中心；登录页为隐藏路由。
+ * 当前菜单：测试用例、测试用例v2、脚本资产、页面快照、个人中心；登录页为隐藏路由。
  */
 export const appRoutes = [
   {
@@ -24,21 +30,21 @@ export const appRoutes = [
       eyebrow: 'OPERATOR PROFILE / 03',
     },
   },
-  {
-    path: '/test-cases',
-    component: lazy(() => import('../views/TestCases')),
-    meta: {
-      title: '测试用例',
-      icon: IconFile,
-      permission: 'case:view',
-      eyebrow: 'TEST LIBRARY / 01',
-    },
-  },
+  // {
+  //   path: '/test-cases',
+  //   component: lazy(() => import('../views/TestCases')),
+  //   meta: {
+  //     title: '测试用例',
+  //     icon: IconFile,
+  //     permission: 'case:view',
+  //     eyebrow: 'TEST LIBRARY / 01',
+  //   },
+  // },
   {
     path: '/test-cases-v2',
     component: lazy(() => import('../views/TestCasesV2')),
     meta: {
-      title: '测试用例v2',
+      title: '测试用例',
       icon: IconFile,
       permission: 'case:view',
       eyebrow: 'TEST LIBRARY / 01 · V2',
@@ -52,6 +58,16 @@ export const appRoutes = [
       icon: IconCode,
       permission: 'script:view',
       eyebrow: 'SCRIPT ASSETS / 02',
+    },
+  },
+  {
+    path: '/page-snapshot',
+    component: lazy(() => import('../views/PageSnapshot')),
+    meta: {
+      title: '页面快照',
+      icon: IconCamera,
+      permission: 'snapshot:view',
+      eyebrow: 'PAGE SNAPSHOT / 04',
     },
   },
   {

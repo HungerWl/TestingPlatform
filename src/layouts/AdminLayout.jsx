@@ -15,6 +15,8 @@ export default function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const location = useLocation();
+  // 页面快照需要铺满内容区，去掉内容容器自带的 padding 和 max-width。
+  const flushContent = location.pathname === '/page-snapshot';
 
   useEffect(() => {
     setMobileOpen(false);
@@ -49,7 +51,7 @@ export default function AdminLayout() {
           onOpenMobile={() => setMobileOpen(true)}
         />
         <main className="tp-content">
-          <div className="tp-content__inner">
+          <div className={`tp-content__inner ${flushContent ? 'is-flush' : ''}`.trim()}>
             <Outlet />
           </div>
         </main>

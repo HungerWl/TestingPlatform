@@ -1,0 +1,16 @@
+/*
+ * 个人中心视频高度：减去顶部导航、内容区上下内边距、页面标题和全局 footer 后，
+ * 保证整页正好落在视口内，footer 不需要滚动就能看到。
+ */
+.profile-page__video {
+  display: block;
+  width: 100%;
+  max-height: calc(100vh - 345px);
+  object-fit: cover;
+}
+
+@media (max-width: 767px) {
+  .profile-page__video {
+    max-height: calc(100vh - 300px);
+  }
+}

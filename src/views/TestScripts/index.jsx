@@ -30,6 +30,7 @@ import {
   IconFilter,
   IconHistory,
   IconList,
+  IconPlayArrow,
   IconPlus,
   IconRefresh,
   IconSearch,
@@ -44,6 +45,7 @@ import TestCaseSelect from '../../components/test/TestCaseSelect';
 import {
   deleteTestScript,
   downloadTestScript,
+  executeTestScriptTrace,
   fetchTestScriptDetail,
   fetchTestScripts,
   previewTestScript,
@@ -88,6 +90,22 @@ const nullIfEmpty = (value) => {
 };
 
 const normalizeCaseIds = (ids = []) => [...new Set(ids.filter(Boolean))].sort();
+
+// Trace 执行由 Node 版 Playwright Worker 完成，暂不支持 .py 脚本。
+const TRACE_SUPPORTED_EXTENSIONS = ['.js', '.mjs', '.cjs', '.ts'];
+const supportsTrace = (record) =>
+  TRACE_SUPPORTED_EXTENSIONS.includes((record?.file_ext || '').toLowerCase());
+
+const saveBlob = (blob, fileName) => {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName || 'download';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
 
 function ScriptTypeTag({ type }) {
   if (!type) return <Typography.Text type="secondary">—</Typography.Text>;
@@ -234,6 +252,8 @@ export default function TestScripts() {
   const [lockedCase, setLockedCase] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [busyId, setBusyId] = useState(null);
+  // 正在执行并生成 Trace 的脚本 ID；执行期间禁止重复触发。
+  const [traceId, setTraceId] = useState(null);
 
   const [detailVisible, setDetailVisible] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -544,19 +564,45 @@ export default function TestScripts() {
     setBusyId(record.id);
     try {
       const { blob, fileName } = await downloadTestScript(record.id, record.file_name);
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = fileName || record.file_name || 'script-file';
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      saveBlob(blob, fileName || record.file_name || 'script-file');
       Message.success('文件下载已开始');
     } catch {
       // request.js 已统一提示错误。
     } finally {
       setBusyId(null);
+    }
+  };
+
+  /**
+   * 触发脚本执行并下载 trace.zip。
+   * 后端 Worker 在内存中生成 trace 后流式返回，下载完成即释放，不落盘。
+   */
+  const handleExecutionTrace = async (record) => {
+    if (!supportsTrace(record)) {
+      Message.warning('Trace 执行仅支持 Playwright JavaScript / TypeScript 脚本');
+      return;
+    }
+    if (traceId) return;
+
+    setTraceId(record.id);
+    const closeLoading = Message.loading({
+      content: `正在执行「${record.name}」并生成 Trace，请稍候…`,
+      duration: 0,
+    });
+    try {
+      const { blob, fileName, traceCount } = await executeTestScriptTrace(record.id);
+      saveBlob(blob, fileName || 'trace.zip');
+      Message.success(
+        traceCount > 1
+          ? `执行完成，已打包 ${traceCount} 个 Trace 并开始下载`
+          : '执行完成，Trace 已开始下载',
+      );
+    } catch {
+      // request.js 已统一提示错误。
+    } finally {
+      if (typeof closeLoading === 'function') closeLoading();
+      else closeLoading?.close?.();
+      setTraceId(null);
     }
   };
 
@@ -610,7 +656,7 @@ export default function TestScripts() {
     {
       title: '操作',
       dataIndex: 'action',
-      width: 218,
+      width: 254,
       fixed: 'right',
       render: (_, record) => (
         <Space size={0}>
@@ -640,6 +686,25 @@ export default function TestScripts() {
               loading={busyId === record.id}
               onClick={() => handleDownload(record)}
               aria-label="下载脚本"
+            />
+          </Tooltip>
+          <Tooltip
+            content={
+              supportsTrace(record)
+                ? '执行并下载 Trace'
+                : 'Trace 执行仅支持 JS / TS 脚本'
+            }
+          >
+            <Button
+              type="text"
+              size="mini"
+              icon={<IconPlayArrow />}
+              loading={traceId === record.id}
+              disabled={
+                !supportsTrace(record) || (Boolean(traceId) && traceId !== record.id)
+              }
+              onClick={() => handleExecutionTrace(record)}
+              aria-label="执行并下载 Trace"
             />
           </Tooltip>
           <Tooltip content="编辑">
@@ -794,7 +859,7 @@ export default function TestScripts() {
                   columns={columns}
                   data={rows}
                   loading={loading}
-                  scroll={{ x: 950, y: tableViewportHeight }}
+                  scroll={{ x: 990, y: tableViewportHeight }}
                   pagination={false}
                 />
               </div>
@@ -873,6 +938,14 @@ export default function TestScripts() {
               </Button>
               <Button icon={<IconEye />} onClick={() => handlePreview(detail)}>
                 预览
+              </Button>
+              <Button
+                icon={<IconPlayArrow />}
+                loading={traceId === detail.id}
+                disabled={!supportsTrace(detail) || Boolean(traceId)}
+                onClick={() => handleExecutionTrace(detail)}
+              >
+                执行并下载 Trace
               </Button>
               <Button type="primary" icon={<IconEdit />} onClick={editFromDetail}>
                 编辑

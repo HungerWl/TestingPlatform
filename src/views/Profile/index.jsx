@@ -1,5 +1,6 @@
 import { getCurrentUser } from "../../utils/auth";
 import PageHeader from "../../components/common/PageHeader";
+import "./index.scss";
 
 export default function Profile() {
   const user = getCurrentUser();
@@ -14,7 +15,7 @@ export default function Profile() {
       />
       <div className="overflow-hidden rounded-panel border border-line bg-paper-card shadow-panel">
         <video
-          className="block max-h-[70vh] w-full object-cover"
+          className="profile-page__video"
           src="/deepseek.mp4"
           autoPlay
           loop
