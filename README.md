@@ -65,17 +65,19 @@ npm run preview
 
 | 方法 | 路径 | 用途 |
 | --- | --- | --- |
-| `GET` | `/api/v1/test-cases` | 分页查询；支持 keyword / system_name / priority |
+| `GET` | `/api/v1/test-cases` | 分页查询；支持 keyword / system_name / priority / close_status / issue_description |
 | `GET` | `/api/v1/test-cases/{case_id}` | 用例详情，响应包含 `script_count` |
 | `POST` | `/api/v1/test-cases` | 新增用例 |
 | `PUT` | `/api/v1/test-cases/{case_id}` | 修改用例 |
 | `DELETE` | `/api/v1/test-cases/{case_id}` | 删除用例；存在关联脚本时返回 409 |
 
-用例字段：`case_no`、`name`、`system_name`、`priority`、`precondition`、`test_steps`、`expected_result`、`remark`。
+用例字段：`case_no`、`name`、`system_name`、`priority`、`precondition`、`test_steps`、`expected_result`、`close_status`、`issue_description`、`remark`。
 
-- 侧边栏按名称/业务编号、所属系统、优先级筛选；
+- 侧边栏按名称/业务编号、所属系统、优先级、结单状态、问题描述筛选；
 - 「所属系统」下拉选项来自字典类型 `system_name`（通过 `/api/v1/dictionaries/by-code/system_name` 获取）；
-- 列表展示用例名称、业务编号、所属系统、优先级、关联脚本数、创建时间；
+- 「结单状态」下拉选项来自字典类型 `close_status`；
+- 「问题描述」为自由文本，最多 2000 字符；
+- 列表展示用例名称、业务编号、所属系统、优先级、结单状态、问题描述、关联脚本数、创建时间；
 - 不展示 UUID；
 - 用例下存在脚本时删除会展示后端 409 提示；
 - 可一键跳转到脚本资产页，并按当前业务编号过滤。

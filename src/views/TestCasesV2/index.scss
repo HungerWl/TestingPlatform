@@ -98,6 +98,16 @@
   flex-basis: 150px;
 }
 
+.tcv2-filter-field--status {
+  min-width: 140px;
+  flex-basis: 160px;
+}
+
+.tcv2-filter-field--issue {
+  min-width: 150px;
+  flex-basis: 180px;
+}
+
 .tcv2-filter-label {
   padding-left: 1px;
   font-size: 11px;
@@ -179,6 +189,16 @@
   white-space: nowrap;
 }
 
+/* 问题描述：单行省略，与同行其它单元格基线一致 */
+.tcv2-issue {
+  display: block;
+  overflow: hidden;
+  color: var(--tp-ink);
+  line-height: 1.5715;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ---------- 响应式 ---------- */
 @media (max-width: 767px) {
   .tcv2 {
@@ -206,7 +226,9 @@
   }
 
   .tcv2-filter-field,
-  .tcv2-filter-field--priority {
+  .tcv2-filter-field--priority,
+  .tcv2-filter-field--status,
+  .tcv2-filter-field--issue {
     min-width: 0;
     flex: 1 1 100%;
   }

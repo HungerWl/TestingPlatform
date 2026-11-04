@@ -6,7 +6,7 @@
 
 /* ---------- 列表：当前文件（图标 + 文件名 - 大小，同一行） ---------- */
 .tsv-file {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
   max-width: 100%;
@@ -20,9 +20,9 @@
 }
 
 .tsv-file__name {
-  flex: 0 1 auto;
   overflow: hidden;
-  max-width: 132px;
+  min-width: 0;
+  flex: 0 1 auto;
   color: var(--tp-ink);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -64,30 +64,43 @@
 }
 
 /* =========================================================
-   脚本资产 V2 布局 —— 参考测试用例 V2
+   脚本资产 V2 布局 —— 与测试用例 V2 一致的高密度列表
    ---------------------------------------------------------
-   左侧筛选 + 右侧列表；统计信息以文字 + icon 呈现。
-   仅自定义容器样式，不覆盖 Arco 组件原生样式。
+   统计文本工具栏 + 横向筛选条 + 全宽原生 Arco Table；
+   不展示大标题、面板标题和卡片标题。
    ========================================================= */
 
 .tsv2 {
   display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
   flex-direction: column;
-  gap: 14px;
+  gap: 8px;
 }
 
-/* ---------- 轻量统计信息条 ---------- */
-.tsv2-metrics {
+/* ---------- 顶部工具栏：统计文本 + 操作 ---------- */
+.tsv2-toolbar {
   display: flex;
+  min-height: 28px;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
-  padding-left: 2px;
+  justify-content: space-between;
+  gap: 8px 14px;
+  padding: 0 2px;
+}
+
+.tsv2-metrics {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  padding-left: 1px;
 }
 
 .tsv2-metric {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: 3px;
   font-size: 12px;
   line-height: 20px;
@@ -108,126 +121,181 @@
   content: "";
 }
 
-.tsv2-metric__icon {
-  display: inline-flex;
-  align-items: center;
-  font-size: 13px;
-  color: #8d8a7c;
-}
-
 .tsv2-metric strong {
+  color: var(--tp-ink);
   font-family: var(--font-mono);
   font-size: 13px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
-  color: var(--tp-ink);
 }
 
-/* ---------- 左右分栏：左筛选 / 右列表（等高拉伸） ---------- */
-.tsv2-workspace {
+/* ---------- 横向筛选条（表单字段压缩为高密度样式） ---------- */
+/* 注意：Arco 的 .arco-form 默认 display:flex + flex-direction:column，
+   这里必须显式覆盖为横向，否则字段会纵向堆叠并把页面撑高。 */
+.tsv2 .arco-form.tsv2-filters,
+.tsv2-filters {
   display: flex;
-  align-items: stretch;
-  gap: 14px;
-  min-width: 0;
-}
-
-.tsv2-aside {
-  width: 268px;
-  flex: 0 0 268px;
-  overflow: hidden;
-  border: 1px solid var(--tp-line);
-  border-radius: 16px;
-  background: var(--tp-card);
-  box-shadow: 0 1px 0 rgba(16, 18, 15, 0.03), 0 22px 48px -46px rgba(16, 18, 15, 0.5);
-}
-
-.tsv2-aside__head {
-  display: flex;
-  height: 48px;
-  align-items: center;
-  justify-content: space-between;
+  width: 100%;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-end;
   gap: 8px;
-  padding: 0 8px 0 14px;
-  border-bottom: 1px solid rgba(221, 215, 201, 0.8);
+  padding: 8px 10px;
+  border: 1px solid var(--tp-line);
+  border-radius: 8px;
+  background: var(--tp-card);
 }
 
-.tsv2-aside__title {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--tp-ink);
+.tsv2 .tsv2-filters .tsv2-filter-field {
+  display: flex;
+  min-width: 200px;
+  flex: 0 1 280px;
+  flex-direction: column;
+  gap: 3px;
 }
 
-.tsv2-aside__title > svg {
-  font-size: 14px;
+.tsv2 .tsv2-filters .tsv2-filter-field--type {
+  min-width: 170px;
+  flex-basis: 200px;
+}
+
+.tsv2 .tsv2-filters .tsv2-filter-field--case {
+  min-width: 180px;
+  flex-basis: 220px;
+}
+
+/* 压缩 Arco 纵向表单项，使筛选条与测试用例页视觉一致 */
+.tsv2 .tsv2-filters .arco-form-item {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.tsv2 .tsv2-filters .arco-form-item.arco-form-item-error {
+  margin-bottom: 0;
+}
+
+.tsv2 .tsv2-filters .arco-form-label-item {
+  margin-bottom: 3px;
+  padding: 0;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.tsv2 .tsv2-filters .arco-form-label-item > label {
+  padding-left: 1px;
+  font-size: 11px;
+  line-height: 16px;
   color: var(--tp-muted);
 }
 
-.tsv2-aside__body {
-  padding: 14px;
-}
-
-.tsv2-aside__actions {
+.tsv2-filter-actions {
   display: flex;
-  gap: 8px;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
 }
 
-/* ---------- 右侧列表面板 ---------- */
-.tsv2-board {
+/* ---------- 表格主体 ---------- */
+.tsv2-sheet {
   display: flex;
   min-width: 0;
-  min-height: 360px;
+  min-height: 250px;
   flex: 1 1 auto;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--tp-line);
-  border-radius: 16px;
+  border-radius: 8px;
   background: var(--tp-card);
-  box-shadow: 0 1px 0 rgba(16, 18, 15, 0.03), 0 22px 48px -46px rgba(16, 18, 15, 0.5);
 }
 
-.tsv2-board__head {
-  display: flex;
-  height: 48px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 0 14px;
-  border-bottom: 1px solid rgba(221, 215, 201, 0.8);
-}
-
-.tsv2-board__title {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--tp-ink);
-}
-
-.tsv2-board__title > svg {
-  font-size: 14px;
-  color: var(--tp-muted);
-}
-
-.tsv2-board__count {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.02em;
-  color: var(--tp-muted);
-}
-
-.tsv2-board__body {
+.tsv2-sheet__body {
   min-width: 0;
   min-height: 0;
   flex: 1;
 }
 
+.tsv2-sheet__foot {
+  display: flex;
+  min-height: 40px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--tp-line);
+  background: var(--tp-card);
+}
+
+.tsv2-sheet__count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--tp-muted);
+  white-space: nowrap;
+}
+
+/* ---------- 表格内展示：统一单行，超长省略（与测试用例页一致） ---------- */
+.tsv2-name-cell {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.tsv2-name {
+  overflow: hidden;
+  min-width: 0;
+  flex: 0 1 auto;
+  color: var(--tp-ink);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tsv2-script-meta {
+  flex: 0 0 auto;
+  color: var(--tp-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.tsv2-case-cell {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.tsv2-case-name {
+  overflow: hidden;
+  min-width: 0;
+  flex: 0 1 auto;
+  color: var(--tp-ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tsv2-case-cell > .arco-tag {
+  flex: 0 0 auto;
+  margin-right: 0;
+}
+
+.tsv2-remark {
+  display: block;
+  overflow: hidden;
+  color: var(--tp-ink);
+  line-height: 1.5715;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .tsv2-empty {
   display: flex;
+  min-height: 100%;
   flex: 1;
   flex-direction: column;
   align-items: center;
@@ -236,44 +304,16 @@
   padding: 40px 20px;
 }
 
-.tsv2-board__foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 14px;
-  border-top: 1px solid rgba(221, 215, 201, 0.8);
-}
-
-.tsv2-workspace.is-filters-hidden .tsv2-aside {
-  display: none;
-}
-
-@media (min-width: 1440px) {
-  .tsv2-aside {
-    width: 288px;
-    flex-basis: 288px;
-  }
-}
-
-@media (max-width: 1100px) {
-  .tsv2-workspace {
-    flex-direction: column;
-    align-items: stretch;
+/* ---------- 响应式 ---------- */
+@media (max-width: 767px) {
+  .tsv2 {
+    gap: 7px;
   }
 
-  .tsv2-aside {
-    width: 100%;
-    flex: none;
+  .tsv2-toolbar {
+    align-items: flex-start;
   }
 
-  .tsv2-board {
-    width: 100%;
-  }
-}
-
-@media (max-width: 639px) {
   .tsv2-metric + .tsv2-metric {
     padding-left: 0;
   }
@@ -283,14 +323,27 @@
   }
 
   .tsv2-metrics {
-    gap: 2px 14px;
+    gap: 1px 14px;
   }
 
-  .tsv2-board__head {
-    padding: 0 10px;
+  .tsv2 .tsv2-filters,
+  .tsv2-filters {
+    padding: 8px;
   }
 
-  .tsv2-board__title .tp-chip {
-    display: none;
+  .tsv2 .tsv2-filters .tsv2-filter-field,
+  .tsv2 .tsv2-filters .tsv2-filter-field--type,
+  .tsv2 .tsv2-filters .tsv2-filter-field--case {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+
+  .tsv2-filter-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .tsv2-sheet__foot {
+    padding: 5px 8px;
   }
 }

@@ -66,6 +66,8 @@ const INITIAL_FILTERS = {
   keyword: '',
   systemName: undefined,
   priority: undefined,
+  closeStatus: undefined,
+  issueDescription: '',
 };
 
 const INITIAL_QUERY = {
@@ -74,6 +76,8 @@ const INITIAL_QUERY = {
   keyword: '',
   systemName: '',
   priority: '',
+  closeStatus: '',
+  issueDescription: '',
 };
 
 const INITIAL_FORM = {
@@ -84,6 +88,8 @@ const INITIAL_FORM = {
   precondition: '',
   test_steps: '',
   expected_result: '',
+  close_status: undefined,
+  issue_description: '',
   remark: '',
 };
 
@@ -97,7 +103,7 @@ function PriorityTag({ priority }) {
   return <Tag color={PRIORITY_COLOR[priority] || 'gray'}>{priority}</Tag>;
 }
 
-function CaseFormFields({ systemOptions }) {
+function CaseFormFields({ systemOptions, closeStatusOptions }) {
   return (
     <>
       <Divider orientation="left">基本信息</Divider>
@@ -138,6 +144,29 @@ function CaseFormFields({ systemOptions }) {
         <Grid.Col xs={24} md={12}>
           <Form.Item label={<FormLabel>优先级</FormLabel>} field="priority">
             <Select allowClear placeholder="选择优先级" options={PRIORITY_OPTIONS} />
+          </Form.Item>
+        </Grid.Col>
+      </Grid.Row>
+
+      <Divider orientation="left">结单信息</Divider>
+      <Grid.Row gutter={16}>
+        <Grid.Col xs={24} md={12}>
+          <Form.Item label={<FormLabel>结单状态</FormLabel>} field="close_status">
+            <Select
+              allowClear
+              placeholder="选择结单状态"
+              options={closeStatusOptions}
+            />
+          </Form.Item>
+        </Grid.Col>
+        <Grid.Col xs={24}>
+          <Form.Item label={<FormLabel>问题描述</FormLabel>} field="issue_description">
+            <Input.TextArea
+              placeholder="填写问题现象，例如：批量修改页面，修改完字段提交，已修改成功，但窗口不主动关闭，也不提示修改成功，要手动关闭。"
+              autoSize={{ minRows: 3, maxRows: 8 }}
+              maxLength={2000}
+              showWordLimit
+            />
           </Form.Item>
         </Grid.Col>
       </Grid.Row>
@@ -183,6 +212,16 @@ function CaseFormFields({ systemOptions }) {
   );
 }
 
+function withFallbackOptions(options, values) {
+  const result = [...options];
+  for (const value of values.filter(Boolean)) {
+    if (!result.some((item) => item.value === value)) {
+      result.push({ label: value, value });
+    }
+  }
+  return result;
+}
+
 export default function TestCasesV2() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
@@ -196,6 +235,7 @@ export default function TestCasesV2() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [systemDictionary, setSystemDictionary] = useState([]);
+  const [closeStatusDictionary, setCloseStatusDictionary] = useState([]);
 
   const [formVisible, setFormVisible] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -233,12 +273,30 @@ export default function TestCasesV2() {
 
   useEffect(() => {
     let cancelled = false;
+
+    fetchDictionaryOptions('close_status')
+      .then((result) => {
+        if (!cancelled) setCloseStatusDictionary(result?.items || []);
+      })
+      .catch(() => {
+        if (!cancelled) setCloseStatusDictionary([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     setLoading(true);
 
     const params = { page: query.page, page_size: query.pageSize };
     if (query.keyword.trim()) params.keyword = query.keyword.trim();
     if (query.systemName.trim()) params.system_name = query.systemName.trim();
     if (query.priority) params.priority = query.priority;
+    if (query.closeStatus) params.close_status = query.closeStatus;
+    if (query.issueDescription) params.issue_description = query.issueDescription;
 
     fetchTestCases(params)
       .then((result) => {
@@ -294,8 +352,21 @@ export default function TestCasesV2() {
   );
 
   const activeFilterCount = useMemo(
-    () => [query.keyword, query.systemName, query.priority].filter(Boolean).length,
-    [query.keyword, query.systemName, query.priority],
+    () =>
+      [
+        query.keyword,
+        query.systemName,
+        query.priority,
+        query.closeStatus,
+        query.issueDescription,
+      ].filter(Boolean).length,
+    [
+      query.keyword,
+      query.systemName,
+      query.priority,
+      query.closeStatus,
+      query.issueDescription,
+    ],
   );
 
   const systemOptions = useMemo(() => {
@@ -311,6 +382,18 @@ export default function TestCasesV2() {
     return options;
   }, [editing?.system_name, filterDraft.systemName, systemDictionary]);
 
+  const closeStatusOptions = useMemo(
+    () =>
+      withFallbackOptions(closeStatusDictionary, [
+        filterDraft.closeStatus,
+        editing?.close_status,
+      ]),
+    [closeStatusDictionary, editing?.close_status, filterDraft.closeStatus],
+  );
+
+  const dictionaryLabel = (options, value) =>
+    options.find((item) => item.value === value)?.label || value;
+
   const applyFilters = () => {
     setQuery((previous) => ({
       ...previous,
@@ -318,6 +401,8 @@ export default function TestCasesV2() {
       keyword: filterDraft.keyword.trim(),
       systemName: filterDraft.systemName?.trim() || '',
       priority: filterDraft.priority || '',
+      closeStatus: filterDraft.closeStatus || '',
+      issueDescription: filterDraft.issueDescription || '',
     }));
   };
 
@@ -361,6 +446,8 @@ export default function TestCasesV2() {
         precondition: nullIfEmpty(values.precondition),
         test_steps: nullIfEmpty(values.test_steps),
         expected_result: nullIfEmpty(values.expected_result),
+        close_status: values.close_status || null,
+        issue_description: nullIfEmpty(values.issue_description),
         remark: nullIfEmpty(values.remark),
       };
 
@@ -471,6 +558,32 @@ export default function TestCasesV2() {
       render: (value) => <PriorityTag priority={value} />,
     },
     {
+      title: '结单状态',
+      dataIndex: 'close_status',
+      width: 110,
+      render: (value) =>
+        value ? (
+          <Tag color={{ passed: 'green', failed: 'red', online_verify: 'orange' }[value] || 'gray'}>
+            {dictionaryLabel(closeStatusOptions, value)}
+          </Tag>
+        ) : (
+          <Typography.Text type="secondary">—</Typography.Text>
+        ),
+    },
+    {
+      title: '问题描述',
+      dataIndex: 'issue_description',
+      width: 220,
+      render: (value) =>
+        value ? (
+          <span className="tcv2-issue" title={value}>
+            {value}
+          </span>
+        ) : (
+          <Typography.Text type="secondary">—</Typography.Text>
+        ),
+    },
+    {
       title: '关联脚本',
       dataIndex: 'script_count',
       width: 92,
@@ -519,10 +632,13 @@ export default function TestCasesV2() {
             />
           </Tooltip>
           <Popconfirm
-            title="删除这个测试用例？"
-            content="存在关联脚本时无法删除，请先删除脚本。"
+            title="确认删除这个测试用例？"
+            content="删除后不可恢复；存在关联脚本时需先删除脚本。"
             okText="删除"
             cancelText="取消"
+            okButtonProps={{ status: 'danger' }}
+            position="br"
+            style={{ width: 260, maxWidth: 'calc(100vw - 32px)' }}
             onOk={() => handleDelete(record)}
           >
             <Tooltip content="删除">
@@ -624,6 +740,31 @@ export default function TestCasesV2() {
               }
             />
           </div>
+          <div className="tcv2-filter-field tcv2-filter-field--status">
+            <span className="tcv2-filter-label">结单状态</span>
+            <Select
+              allowClear
+              placeholder="全部状态"
+              options={closeStatusOptions}
+              value={filterDraft.closeStatus}
+              onChange={(value) =>
+                setFilterDraft((previous) => ({ ...previous, closeStatus: value }))
+              }
+            />
+          </div>
+          <div className="tcv2-filter-field tcv2-filter-field--issue">
+            <span className="tcv2-filter-label">问题描述</span>
+            <Input
+              allowClear
+              prefix={<IconSearch />}
+              placeholder="搜索问题描述"
+              value={filterDraft.issueDescription}
+              onChange={(value) =>
+                setFilterDraft((previous) => ({ ...previous, issueDescription: value }))
+              }
+              onPressEnter={applyFilters}
+            />
+          </div>
           <div className="tcv2-filter-actions">
             <Button size="small" type="primary" onClick={applyFilters}>
               查询
@@ -645,7 +786,7 @@ export default function TestCasesV2() {
             size="small"
             border
             borderCell
-            scroll={{ x: 940, y: tableViewportHeight }}
+            scroll={{ x: 1270, y: tableViewportHeight }}
             pagination={false}
           />
         </div>
@@ -688,7 +829,10 @@ export default function TestCasesV2() {
           onSubmit={handleSubmit}
           requiredSymbol={false}
         >
-          <CaseFormFields systemOptions={systemOptions} />
+          <CaseFormFields
+            systemOptions={systemOptions}
+            closeStatusOptions={closeStatusOptions}
+          />
         </Form>
       </Drawer>
 
@@ -732,9 +876,25 @@ export default function TestCasesV2() {
                   { label: '业务编号', value: detail.case_no },
                   { label: '所属系统', value: detail.system_name },
                   { label: '优先级', value: <PriorityTag priority={detail.priority} /> },
+                  {
+                    label: '结单状态',
+                    value: detail.close_status
+                      ? dictionaryLabel(closeStatusOptions, detail.close_status)
+                      : '—',
+                  },
                   { label: '创建时间', value: formatDateTime(detail.created_at) },
                 ]}
               />
+
+              <div className="space-y-2">
+                <Typography.Text type="secondary">问题描述</Typography.Text>
+                <Input.TextArea
+                  value={detail.issue_description || ''}
+                  placeholder="暂无问题描述"
+                  readOnly
+                  autoSize={{ minRows: 3, maxRows: 8 }}
+                />
+              </div>
 
               <div className="space-y-2">
                 <Typography.Text type="secondary">前置条件</Typography.Text>
