@@ -162,6 +162,33 @@
   white-space: nowrap;
 }
 
+/* ---------- 导入结果 ---------- */
+.tcv2-import__summary {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--tp-ink);
+}
+
+.tcv2-import__errors {
+  overflow-y: auto;
+  max-height: 260px;
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--tp-muted);
+}
+
+.tcv2-import__errors > li + li {
+  margin-top: 4px;
+}
+
+.tcv2-import__hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--tp-muted);
+}
+
 /* ---------- 列设置浮层 ---------- */
 .tcv2-columns {
   display: flex;

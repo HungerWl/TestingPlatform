@@ -10,6 +10,7 @@ import {
   Input,
   InputTag,
   Message,
+  Modal,
   Pagination,
   Popconfirm,
   Popover,
@@ -20,10 +21,12 @@ import {
   Tag,
   Tooltip,
   Typography,
+  Upload,
 } from '@arco-design/web-react';
 import {
   IconCode,
   IconDelete,
+  IconDownload,
   IconEdit,
   IconEye,
   IconFilter,
@@ -31,6 +34,7 @@ import {
   IconRefresh,
   IconSearch,
   IconSettings,
+  IconUpload,
 } from '@arco-design/web-react/icon';
 import { useNavigate } from 'react-router-dom';
 import FormLabel from '../../components/common/FormLabel';
@@ -38,8 +42,10 @@ import { fetchDictionaryOptions } from '../../api/dictionaries';
 import {
   createTestCase,
   deleteTestCase,
+  downloadTestCaseTemplate,
   fetchTestCaseDetail,
   fetchTestCases,
+  importTestCases,
   updateTestCase,
 } from '../../api/testCases';
 import { formatDateTime } from '../../utils/format';
@@ -162,6 +168,17 @@ const nullIfEmpty = (value) => {
 const CASE_NAME_PLACEHOLDER = '未命名用例';
 const caseDisplayName = (value) =>
   typeof value === 'string' && value.trim() ? value : CASE_NAME_PLACEHOLDER;
+
+const saveBlob = (blob, fileName) => {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName || 'download';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
 
 function PriorityTag({ priority }) {
   if (!priority) return <Typography.Text type="secondary">—</Typography.Text>;
@@ -329,6 +346,11 @@ export default function TestCasesV2() {
   const [detailVisible, setDetailVisible] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detail, setDetail] = useState(null);
+
+  // CSV 批量导入
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const [importVisible, setImportVisible] = useState(false);
 
   const sheetBodyRef = useRef(null);
   const [tableViewportHeight, setTableViewportHeight] = useState(400);
@@ -507,6 +529,39 @@ export default function TestCasesV2() {
     setFilterDraft(INITIAL_FILTERS);
     setQuery({ ...INITIAL_QUERY });
     setRefreshKey((key) => key + 1);
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const { blob, fileName } = await downloadTestCaseTemplate();
+      saveBlob(blob, fileName || 'test-case-import-template.csv');
+      Message.success('导入模板已开始下载');
+    } catch {
+      // request.js 已统一提示错误
+    }
+  };
+
+  const handleImport = async ({ file, onSuccess, onError }) => {
+    setImporting(true);
+    try {
+      const result = await importTestCases(file);
+      onSuccess?.(result);
+
+      if (result?.failed > 0) {
+        setImportResult(result);
+        setImportVisible(true);
+        Message.warning(`导入完成：成功 ${result.success} 条，失败 ${result.failed} 条`);
+      } else {
+        Message.success(`导入成功 ${result?.success || 0} 条`);
+      }
+
+      setQuery((previous) => ({ ...previous, page: 1 }));
+      setRefreshKey((key) => key + 1);
+    } catch (error) {
+      onError?.(error);
+    } finally {
+      setImporting(false);
+    }
   };
 
   const openCreate = () => {
@@ -932,6 +987,23 @@ export default function TestCasesV2() {
               列设置
             </Button>
           </Popover>
+          <Tooltip content="下载 CSV 导入模板">
+            <Button size="small" icon={<IconDownload />} onClick={handleDownloadTemplate}>
+              模板
+            </Button>
+          </Tooltip>
+          <Upload
+            accept=".csv"
+            showUploadList={false}
+            customRequest={handleImport}
+            disabled={importing}
+          >
+            <Tooltip content="按模板整理后上传 CSV 批量导入">
+              <Button size="small" icon={<IconUpload />} loading={importing}>
+                导入
+              </Button>
+            </Tooltip>
+          </Upload>
           <Button size="small" type="primary" icon={<IconPlus />} onClick={openCreate}>
             新增用例
           </Button>
@@ -1182,6 +1254,35 @@ export default function TestCasesV2() {
           ) : null}
         </Spin>
       </Drawer>
+
+      <Modal
+        title="导入结果"
+        visible={importVisible}
+        onCancel={() => setImportVisible(false)}
+        footer={
+          <Button type="primary" onClick={() => setImportVisible(false)}>
+            知道了
+          </Button>
+        }
+        style={{ width: 540 }}
+      >
+        <p className="tcv2-import__summary">
+          共 {importResult?.total || 0} 行，成功 {importResult?.success || 0} 条，失败{' '}
+          {importResult?.failed || 0} 条。
+        </p>
+        <ul className="tcv2-import__errors">
+          {(importResult?.errors || []).map((item) => (
+            <li key={`${item.row}-${item.message}`}>
+              第 {item.row} 行：{item.message}
+            </li>
+          ))}
+        </ul>
+        {importResult && importResult.failed > (importResult.errors?.length || 0) ? (
+          <p className="tcv2-import__hint">
+            仅展示前 {importResult.errors?.length || 0} 条失败原因，修正后可重新导入。
+          </p>
+        ) : null}
+      </Modal>
     </div>
   );
 }

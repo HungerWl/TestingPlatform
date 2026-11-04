@@ -26,3 +26,45 @@ export function updateTestCase(caseId, payload) {
 export function deleteTestCase(caseId) {
   return request.delete(`${BASE}/${caseId}`);
 }
+
+function getDownloadFileName(disposition, fallbackName) {
+  if (!disposition) return fallbackName;
+
+  const utf8Match = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (utf8Match?.[1]) {
+    try {
+      return decodeURIComponent(utf8Match[1].replace(/["']/g, ''));
+    } catch {
+      return utf8Match[1];
+    }
+  }
+
+  const plainMatch = disposition.match(/filename="?([^";]+)"?/i);
+  return plainMatch?.[1] || fallbackName;
+}
+
+/**
+ * 下载测试用例导入模板（CSV），返回 Blob 与文件名。
+ */
+export async function downloadTestCaseTemplate(fallbackName = 'test-case-import-template.csv') {
+  const response = await request.get(`${BASE}/import-template`, {
+    responseType: 'blob',
+    returnFullResponse: true,
+  });
+
+  return {
+    blob: response.data,
+    fileName: getDownloadFileName(response.headers?.['content-disposition'], fallbackName),
+  };
+}
+
+/**
+ * 上传 CSV 批量导入测试用例。
+ *
+ * 后端逐行校验，返回 { total, success, failed, errors }。
+ */
+export function importTestCases(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return request.post(`${BASE}/import`, formData, { timeout: 120000 });
+}
