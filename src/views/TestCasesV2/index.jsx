@@ -38,6 +38,7 @@ import {
 } from '@arco-design/web-react/icon';
 import { useNavigate } from 'react-router-dom';
 import FormLabel from '../../components/common/FormLabel';
+import useMediaQuery from '../../hooks/useMediaQuery';
 import { fetchDictionaryOptions } from '../../api/dictionaries';
 import {
   createTestCase,
@@ -168,6 +169,20 @@ const nullIfEmpty = (value) => {
 const CASE_NAME_PLACEHOLDER = '未命名用例';
 const caseDisplayName = (value) =>
   typeof value === 'string' && value.trim() ? value : CASE_NAME_PLACEHOLDER;
+
+// 详情描述表格：标签不换行、值可换行，避免窄抽屉里文字被压缩成两行
+const DESC_LABEL_STYLE = {
+  width: 96,
+  paddingRight: 8,
+  whiteSpace: 'nowrap',
+  color: 'var(--tp-muted)',
+  fontWeight: 400,
+};
+const DESC_VALUE_STYLE = {
+  minWidth: 0,
+  color: 'var(--tp-ink)',
+  wordBreak: 'break-word',
+};
 
 const saveBlob = (blob, fileName) => {
   const url = URL.createObjectURL(blob);
@@ -327,6 +342,8 @@ function withFallbackOptions(options, values) {
 export default function TestCasesV2() {
   const navigate = useNavigate();
   const [form] = Form.useForm();
+  // 详情抽屉内宽度有限，窄屏时改为单列展示，避免标签与值互相挤压
+  const isNarrowScreen = useMediaQuery('(max-width: 767px)');
 
   const [query, setQuery] = useState(INITIAL_QUERY);
   const [filterDraft, setFilterDraft] = useState(INITIAL_FILTERS);
@@ -1149,7 +1166,7 @@ export default function TestCasesV2() {
         title="测试用例详情"
         visible={detailVisible}
         onCancel={() => setDetailVisible(false)}
-        width="min(720px, 100vw)"
+        width="min(900px, 100vw)"
         footer={
           detail ? (
             <Space>
@@ -1180,8 +1197,12 @@ export default function TestCasesV2() {
               </div>
 
               <Descriptions
-                column={{ xs: 1, sm: 2 }}
+                column={isNarrowScreen ? 1 : 2}
                 border
+                size="small"
+                tableLayout="fixed"
+                labelStyle={DESC_LABEL_STYLE}
+                valueStyle={DESC_VALUE_STYLE}
                 data={[
                   { label: '业务编号', value: detail.case_no },
                   { label: '所属系统', value: detail.system_name },
@@ -1201,6 +1222,7 @@ export default function TestCasesV2() {
                       : '—',
                   },
                   { label: '创建时间', value: formatDateTime(detail.created_at) },
+                  { label: '更新时间', value: formatDateTime(detail.updated_at) },
                 ]}
               />
 
