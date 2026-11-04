@@ -51,6 +51,22 @@ const percent = (count, total) =>
   total > 0 ? `${((count / total) * 100).toFixed(1)}%` : '0%';
 
 /**
+ * 日期统一转成 YYYY-MM-DD。
+ * Arco RangePicker 默认回传字符串（也可能是 Date / dayjs），这里统一兼容。
+ */
+const toDateString = (value) => {
+  if (!value) return '';
+  if (typeof value === 'string') return value.slice(0, 10);
+  if (typeof value.format === 'function') return value.format('YYYY-MM-DD');
+  if (value instanceof Date) {
+    const month = `${value.getMonth() + 1}`.padStart(2, '0');
+    const day = `${value.getDate()}`.padStart(2, '0');
+    return `${value.getFullYear()}-${month}-${day}`;
+  }
+  return '';
+};
+
+/**
  * 测试用例外数据统计。
  * ---------------------------------------------------------------
  * 筛选：创建时间范围、结单状态、单位、所属系统；
@@ -131,8 +147,8 @@ export default function TestCaseStats() {
   const applyFilters = () => {
     const [start, end] = filters.range || [];
     setQuery({
-      startDate: start ? start.format('YYYY-MM-DD') : '',
-      endDate: end ? end.format('YYYY-MM-DD') : '',
+      startDate: toDateString(start),
+      endDate: toDateString(end),
       closeStatus: filters.closeStatus || '',
       unit: filters.unit || '',
       systemName: filters.systemName || '',
