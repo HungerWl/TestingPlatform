@@ -27,6 +27,20 @@ export function deleteTestCase(caseId) {
   return request.delete(`${BASE}/${caseId}`);
 }
 
+/**
+ * 数据统计：按创建时间范围、结单状态、单位、所属系统筛选。
+ *
+ * @param {Object} params
+ * @param {string} [params.start_date] YYYY-MM-DD
+ * @param {string} [params.end_date] YYYY-MM-DD
+ * @param {string} [params.close_status]
+ * @param {string} [params.unit]
+ * @param {string} [params.system_name]
+ */
+export function fetchTestCaseStats(params = {}) {
+  return request.get(`${BASE}/stats`, { params });
+}
+
 function getDownloadFileName(disposition, fallbackName) {
   if (!disposition) return fallbackName;
 

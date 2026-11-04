@@ -831,7 +831,7 @@ export default function TestCasesV2() {
       title: '问题描述',
       key: 'issue_description',
       dataIndex: 'issue_description',
-      width: 220,
+      width: 300,
       render: (value) =>
         value ? (
           <span className="tcv2-issue" title={value}>

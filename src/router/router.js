@@ -3,6 +3,7 @@ import {
   IconBook,
   IconCamera,
   IconCode,
+  IconDashboard,
   IconFile,
   IconLock,
   IconUser,
@@ -49,6 +50,16 @@ export const appRoutes = [
       icon: IconFile,
       permission: 'case:view',
       eyebrow: 'TEST LIBRARY / 01 · V2',
+    },
+  },
+  {
+    path: '/test-case-stats',
+    component: lazy(() => import('../views/TestCaseStats')),
+    meta: {
+      title: '数据统计',
+      icon: IconDashboard,
+      permission: 'case:view',
+      eyebrow: 'TEST ANALYTICS / 01 · STATS',
     },
   },
   {

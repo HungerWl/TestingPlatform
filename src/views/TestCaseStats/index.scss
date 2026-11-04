@@ -1,0 +1,335 @@
+/* =========================================================
+   测试用例数据统计
+   ---------------------------------------------------------
+   只给自定义容器与图表写样式，Arco 组件保持原生风格。
+   ========================================================= */
+
+.tcs {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ---------- 筛选条 ---------- */
+.tcs-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--tp-line);
+  border-radius: 8px;
+  background: var(--tp-card);
+}
+
+.tcs-filter-field {
+  display: flex;
+  min-width: 168px;
+  flex: 0 1 210px;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tcs-filter-field--range {
+  min-width: 260px;
+  flex-basis: 300px;
+}
+
+.tcs-filter-label {
+  padding-left: 1px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--tp-muted);
+}
+
+.tcs-filter-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* ---------- 指标条 ---------- */
+.tcs-metrics {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 0 2px;
+}
+
+.tcs-metric {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--tp-muted);
+  white-space: nowrap;
+}
+
+.tcs-metric + .tcs-metric {
+  padding-left: 12px;
+}
+
+.tcs-metric + .tcs-metric::before {
+  width: 3px;
+  height: 3px;
+  margin-right: 9px;
+  border-radius: 50%;
+  background: rgba(16, 18, 15, 0.2);
+  content: "";
+}
+
+.tcs-metric strong {
+  color: var(--tp-ink);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.tcs-metric.is-accent {
+  color: var(--tp-ember);
+}
+
+.tcs-metric.is-accent strong {
+  color: var(--tp-ember);
+}
+
+/* ---------- 卡片网格 ---------- */
+.tcs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tcs-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--tp-line);
+  border-radius: 8px;
+  background: var(--tp-card);
+}
+
+.tcs-card--wide {
+  grid-column: span 2;
+}
+
+.tcs-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--tp-line);
+}
+
+.tcs-card__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--tp-ink);
+}
+
+.tcs-card__meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  color: var(--tp-muted);
+}
+
+.tcs-card__body {
+  min-width: 0;
+  flex: 1;
+  padding: 12px 14px;
+}
+
+/* ---------- 状态分布 ---------- */
+.tcs-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.tcs-status__table {
+  min-width: 220px;
+  flex: 1 1 240px;
+}
+
+.tcs-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tcs-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 2px;
+}
+
+.tcs-number {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--tp-ink);
+}
+
+.tcs-muted {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--tp-muted);
+}
+
+.tcs-empty {
+  display: flex;
+  justify-content: center;
+  padding: 56px 0;
+}
+
+.tcs-footnote {
+  padding-left: 2px;
+  font-size: 11px;
+  line-height: 18px;
+}
+
+/* ---------- 趋势图 ---------- */
+.tp-trend {
+  width: 100%;
+}
+
+/* ---------- 环形图 ---------- */
+.tp-donut {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+}
+
+.tp-donut__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.tp-donut__value {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--tp-ink);
+}
+
+.tp-donut__label {
+  font-size: 11px;
+  color: var(--tp-muted);
+}
+
+/* ---------- 条形列表 ---------- */
+.tp-barlist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tp-barlist__item {
+  display: grid;
+  grid-template-columns: minmax(0, 104px) minmax(0, 1fr) 38px;
+  align-items: center;
+  gap: 8px;
+}
+
+.tp-barlist__label {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--tp-ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tp-barlist__track {
+  overflow: hidden;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(16, 18, 15, 0.06);
+}
+
+.tp-barlist__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ff5c35, #ff8b5e);
+}
+
+.tp-barlist__value {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-align: right;
+  color: var(--tp-ink);
+}
+
+.tp-barlist__empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--tp-muted);
+}
+
+/* ---------- 响应式 ---------- */
+@media (max-width: 1023px) {
+  .tcs-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tcs-card--wide {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 767px) {
+  .tcs-filter-field,
+  .tcs-filter-field--range {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+
+  .tcs-filter-actions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .tcs-metric + .tcs-metric {
+    padding-left: 0;
+  }
+
+  .tcs-metric + .tcs-metric::before {
+    display: none;
+  }
+
+  .tcs-metrics {
+    gap: 1px 14px;
+  }
+
+  .tcs-status {
+    justify-content: center;
+  }
+}
