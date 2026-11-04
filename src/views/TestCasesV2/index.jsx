@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
+  Checkbox,
   Descriptions,
   Divider,
   Drawer,
   Form,
   Grid,
   Input,
+  InputTag,
   Message,
   Pagination,
   Popconfirm,
+  Popover,
   Select,
   Space,
   Spin,
@@ -27,6 +30,7 @@ import {
   IconPlus,
   IconRefresh,
   IconSearch,
+  IconSettings,
 } from '@arco-design/web-react/icon';
 import { useNavigate } from 'react-router-dom';
 import FormLabel from '../../components/common/FormLabel';
@@ -62,6 +66,60 @@ const PRIORITY_COLOR = {
   P3: 'gray',
 };
 
+/* ---------------- 列配置：可勾选显示、可拖动排序 ---------------- */
+const COLUMN_STORAGE_KEY = 'tp.test-cases-v2.column-config';
+const COLUMN_ORDER_DEFAULT = [
+  'name',
+  'system_name',
+  'unit',
+  'close_status',
+  'executors',
+  'issue_description',
+  'script_count',
+  'created_at',
+];
+const COLUMN_LABELS = {
+  name: '用例名称 / 业务编号',
+  system_name: '所属系统',
+  unit: '单位',
+  close_status: '结单状态',
+  executors: '任务执行人',
+  issue_description: '问题描述',
+  script_count: '关联脚本',
+  created_at: '创建时间',
+};
+
+const readColumnConfig = () => {
+  const fallback = { order: [...COLUMN_ORDER_DEFAULT], hidden: [] };
+  if (typeof window === 'undefined') return fallback;
+
+  try {
+    const raw = window.localStorage.getItem(COLUMN_STORAGE_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+
+    const order = Array.isArray(parsed?.order)
+      ? parsed.order.filter(
+          (key, index, list) =>
+            COLUMN_ORDER_DEFAULT.includes(key) && list.indexOf(key) === index,
+        )
+      : [];
+    for (const key of COLUMN_ORDER_DEFAULT) {
+      if (!order.includes(key)) order.push(key);
+    }
+
+    // 不允许把列全部隐藏，兜底保留第一列
+    const hidden = Array.isArray(parsed?.hidden)
+      ? parsed.hidden.filter((key) => COLUMN_ORDER_DEFAULT.includes(key))
+      : [];
+    if (hidden.length >= COLUMN_ORDER_DEFAULT.length) hidden.splice(1);
+
+    return { order, hidden };
+  } catch {
+    return fallback;
+  }
+};
+
 const INITIAL_FILTERS = {
   keyword: '',
   systemName: undefined,
@@ -84,6 +142,8 @@ const INITIAL_FORM = {
   case_no: '',
   name: '',
   system_name: undefined,
+  unit: '',
+  executors: [],
   priority: undefined,
   precondition: '',
   test_steps: '',
@@ -142,8 +202,30 @@ function CaseFormFields({ systemOptions, closeStatusOptions }) {
           </Form.Item>
         </Grid.Col>
         <Grid.Col xs={24} md={12}>
+          <Form.Item
+            label={<FormLabel>单位</FormLabel>}
+            field="unit"
+            rules={[{ maxLength: 128, message: '最多 128 个字符' }]}
+          >
+            <Input placeholder="例如：声像档案管理系统组" maxLength={128} showWordLimit />
+          </Form.Item>
+        </Grid.Col>
+        <Grid.Col xs={24} md={12}>
           <Form.Item label={<FormLabel>优先级</FormLabel>} field="priority">
             <Select allowClear placeholder="选择优先级" options={PRIORITY_OPTIONS} />
+          </Form.Item>
+        </Grid.Col>
+        <Grid.Col xs={24} md={12}>
+          <Form.Item
+            label={<FormLabel>任务执行人</FormLabel>}
+            field="executors"
+            extra="输入姓名后按回车添加，支持多个执行人"
+          >
+            <InputTag
+              allowClear
+              placeholder="输入姓名后回车，支持多个"
+              maxTagCount={{ count: 10, render: (invisibleCount) => `+${invisibleCount}` }}
+            />
           </Form.Item>
         </Grid.Col>
       </Grid.Row>
@@ -247,6 +329,18 @@ export default function TestCasesV2() {
 
   const sheetBodyRef = useRef(null);
   const [tableViewportHeight, setTableViewportHeight] = useState(400);
+
+  // 列显示 / 列顺序配置，保存在本地，刷新后保持用户习惯
+  const [columnConfig, setColumnConfig] = useState(readColumnConfig);
+  const dragColumnRef = useRef(null);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(columnConfig));
+    } catch {
+      // 忽略隐私模式等导致的存储异常
+    }
+  }, [columnConfig]);
 
   useEffect(() => {
     let cancelled = false;
@@ -442,6 +536,10 @@ export default function TestCasesV2() {
         case_no: values.case_no.trim(),
         name: values.name.trim(),
         system_name: values.system_name.trim(),
+        unit: nullIfEmpty(values.unit),
+        executors: (Array.isArray(values.executors) ? values.executors : [])
+          .map((item) => (typeof item === 'string' ? item.trim() : ''))
+          .filter(Boolean),
         priority: values.priority || null,
         precondition: nullIfEmpty(values.precondition),
         test_steps: nullIfEmpty(values.test_steps),
@@ -519,6 +617,64 @@ export default function TestCasesV2() {
     });
   };
 
+  const visibleColumnKeys = columnConfig.order.filter(
+    (key) => !columnConfig.hidden.includes(key),
+  );
+
+  const toggleColumn = (key, checked) => {
+    setColumnConfig((previous) => {
+      const hidden = checked
+        ? previous.hidden.filter((item) => item !== key)
+        : [...new Set([...previous.hidden, key])];
+      // 至少保留一列，避免表格变成空白
+      if (hidden.length >= COLUMN_ORDER_DEFAULT.length) return previous;
+      return { ...previous, hidden };
+    });
+  };
+
+  const resetColumns = () => {
+    dragColumnRef.current = null;
+    setColumnConfig({ order: [...COLUMN_ORDER_DEFAULT], hidden: [] });
+  };
+
+  const moveColumn = (sourceKey, targetKey) => {
+    if (!sourceKey || !targetKey || sourceKey === targetKey) return;
+    setColumnConfig((previous) => {
+      const order = previous.order.filter((key) => key !== sourceKey);
+      const index = order.indexOf(targetKey);
+      order.splice(index < 0 ? order.length : index, 0, sourceKey);
+      return { ...previous, order };
+    });
+  };
+
+  const headerDragProps = (key) => ({
+    draggable: true,
+    style: { cursor: 'grab' },
+    onDragStart: (event) => {
+      dragColumnRef.current = key;
+      event.dataTransfer.effectAllowed = 'move';
+      try {
+        event.dataTransfer.setData('text/plain', key);
+      } catch {
+        // 部分浏览器在非用户手势下会抛错，忽略即可
+      }
+    },
+    onDragOver: (event) => {
+      if (dragColumnRef.current && dragColumnRef.current !== key) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+      }
+    },
+    onDrop: (event) => {
+      event.preventDefault();
+      moveColumn(dragColumnRef.current, key);
+      dragColumnRef.current = null;
+    },
+    onDragEnd: () => {
+      dragColumnRef.current = null;
+    },
+  });
+
   const columns = [
     {
       title: '#',
@@ -534,6 +690,7 @@ export default function TestCasesV2() {
     },
     {
       title: '用例名称 / 业务编号',
+      key: 'name',
       dataIndex: 'name',
       width: 290,
       render: (value, record) => (
@@ -547,18 +704,28 @@ export default function TestCasesV2() {
     },
     {
       title: '所属系统',
+      key: 'system_name',
       dataIndex: 'system_name',
       width: 140,
       render: (value) => <Tag>{value}</Tag>,
     },
     {
-      title: '优先级',
-      dataIndex: 'priority',
-      width: 84,
-      render: (value) => <PriorityTag priority={value} />,
+      title: '单位',
+      key: 'unit',
+      dataIndex: 'unit',
+      width: 120,
+      render: (value) =>
+        value ? (
+          <span className="tcv2-ellipsis" title={value}>
+            {value}
+          </span>
+        ) : (
+          <Typography.Text type="secondary">—</Typography.Text>
+        ),
     },
     {
       title: '结单状态',
+      key: 'close_status',
       dataIndex: 'close_status',
       width: 110,
       render: (value) =>
@@ -571,7 +738,22 @@ export default function TestCasesV2() {
         ),
     },
     {
+      title: '任务执行人',
+      key: 'executors',
+      dataIndex: 'executors',
+      width: 150,
+      render: (value) =>
+        Array.isArray(value) && value.length ? (
+          <span className="tcv2-ellipsis" title={value.join('、')}>
+            {value.join('、')}
+          </span>
+        ) : (
+          <Typography.Text type="secondary">—</Typography.Text>
+        ),
+    },
+    {
       title: '问题描述',
+      key: 'issue_description',
       dataIndex: 'issue_description',
       width: 220,
       render: (value) =>
@@ -585,12 +767,14 @@ export default function TestCasesV2() {
     },
     {
       title: '关联脚本',
+      key: 'script_count',
       dataIndex: 'script_count',
       width: 92,
       render: (value) => <Tag color={value > 0 ? 'arcoblue' : 'gray'}>{value} 个</Tag>,
     },
     {
       title: '创建时间',
+      key: 'created_at',
       dataIndex: 'created_at',
       width: 150,
       render: (value) => (
@@ -656,6 +840,25 @@ export default function TestCasesV2() {
     },
   ];
 
+  const columnMap = Object.fromEntries(
+    columns.filter((column) => column.key).map((column) => [column.key, column]),
+  );
+
+  // 固定「序号」在最左、「操作」在最右，中间列按用户配置的顺序与显隐渲染
+  const tableColumns = [
+    columns[0],
+    ...visibleColumnKeys.map((key) => ({
+      ...columnMap[key],
+      onHeaderCell: () => headerDragProps(key),
+    })),
+    columns[columns.length - 1],
+  ];
+
+  const tableScrollWidth =
+    columns[0].width +
+    columns[columns.length - 1].width +
+    visibleColumnKeys.reduce((sum, key) => sum + (columnMap[key]?.width || 0), 0);
+
   const metrics = [
     { label: '用例总数', value: total, unit: '条' },
     { label: '本页记录', value: rows.length, unit: '条' },
@@ -695,6 +898,36 @@ export default function TestCasesV2() {
             {filtersOpen ? '收起筛选' : '筛选'}
             {activeFilterCount > 0 ? ` ${activeFilterCount}` : ''}
           </Button>
+          <Popover
+            trigger="click"
+            position="br"
+            content={
+              <div className="tcv2-columns">
+                <div className="tcv2-columns__head">
+                  <span className="tcv2-columns__title">显示列</span>
+                  <Button type="text" size="mini" onClick={resetColumns}>
+                    重置
+                  </Button>
+                </div>
+                <div className="tcv2-columns__list">
+                  {columnConfig.order.map((key) => (
+                    <Checkbox
+                      key={key}
+                      checked={!columnConfig.hidden.includes(key)}
+                      onChange={(checked) => toggleColumn(key, checked)}
+                    >
+                      {COLUMN_LABELS[key]}
+                    </Checkbox>
+                  ))}
+                </div>
+                <p className="tcv2-columns__hint">勾选控制显示列，拖动表头可调整列顺序</p>
+              </div>
+            }
+          >
+            <Button size="small" icon={<IconSettings />}>
+              列设置
+            </Button>
+          </Popover>
           <Button size="small" type="primary" icon={<IconPlus />} onClick={openCreate}>
             新增用例
           </Button>
@@ -780,13 +1013,13 @@ export default function TestCasesV2() {
         <div className="tcv2-sheet__body" ref={sheetBodyRef}>
           <Table
             rowKey="id"
-            columns={columns}
+            columns={tableColumns}
             data={rows}
             loading={loading}
             size="small"
             border
             borderCell
-            scroll={{ x: 1270, y: tableViewportHeight }}
+            scroll={{ x: tableScrollWidth, y: tableViewportHeight }}
             pagination={false}
           />
         </div>
@@ -862,6 +1095,7 @@ export default function TestCasesV2() {
                 <Typography.Title heading={5}>{detail.name}</Typography.Title>
                 <Space wrap>
                   <Tag>{detail.system_name}</Tag>
+                  {detail.unit ? <Tag color="purple">{detail.unit}</Tag> : null}
                   <PriorityTag priority={detail.priority} />
                   <Tag color={detail.script_count > 0 ? 'arcoblue' : 'gray'}>
                     {detail.script_count} 个脚本
@@ -875,6 +1109,14 @@ export default function TestCasesV2() {
                 data={[
                   { label: '业务编号', value: detail.case_no },
                   { label: '所属系统', value: detail.system_name },
+                  { label: '单位', value: detail.unit || '—' },
+                  {
+                    label: '任务执行人',
+                    value:
+                      Array.isArray(detail.executors) && detail.executors.length
+                        ? detail.executors.join('、')
+                        : '—',
+                  },
                   { label: '优先级', value: <PriorityTag priority={detail.priority} /> },
                   {
                     label: '结单状态',

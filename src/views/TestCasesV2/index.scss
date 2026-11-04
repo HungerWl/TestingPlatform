@@ -162,6 +162,42 @@
   white-space: nowrap;
 }
 
+/* ---------- 列设置浮层 ---------- */
+.tcv2-columns {
+  display: flex;
+  min-width: 196px;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tcv2-columns__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tcv2-columns__title {
+  font-size: 12px;
+  color: var(--tp-muted);
+}
+
+.tcv2-columns__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.tcv2-columns__hint {
+  margin: 0;
+  padding-top: 6px;
+  border-top: 1px dashed var(--tp-line);
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--tp-muted);
+}
+
 /* ---------- 表格内展示 ---------- */
 .tcv2-name-cell {
   display: flex;
@@ -186,6 +222,16 @@
   font-family: var(--font-mono);
   font-size: 11px;
   letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* 单位 / 任务执行人：单行省略，保持一致的行高 */
+.tcv2-ellipsis {
+  display: block;
+  overflow: hidden;
+  color: var(--tp-ink);
+  line-height: 1.5715;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
