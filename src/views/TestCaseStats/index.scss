@@ -259,6 +259,20 @@
   gap: 8px;
 }
 
+.tp-barlist__item.is-clickable {
+  margin: -2px -4px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.tp-barlist__item.is-clickable:hover,
+.tp-barlist__item.is-clickable:focus-visible {
+  background: rgba(255, 92, 53, 0.08);
+  outline: none;
+}
+
 .tp-barlist__label {
   overflow: hidden;
   font-size: 12px;

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Button,
   Checkbox,
+  DatePicker,
   Descriptions,
   Divider,
   Drawer,
@@ -36,7 +37,7 @@ import {
   IconSettings,
   IconUpload,
 } from '@arco-design/web-react/icon';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import FormLabel from '../../components/common/FormLabel';
 import useMediaQuery from '../../hooks/useMediaQuery';
 import { fetchDictionaryOptions } from '../../api/dictionaries';
@@ -45,11 +46,12 @@ import {
   deleteTestCase,
   downloadTestCaseTemplate,
   fetchTestCaseDetail,
+  fetchTestCaseFilterOptions,
   fetchTestCases,
   importTestCases,
   updateTestCase,
 } from '../../api/testCases';
-import { formatDateTime } from '../../utils/format';
+import { formatDateTime, toDateString } from '../../utils/format';
 import './index.scss';
 
 /**
@@ -130,9 +132,11 @@ const readColumnConfig = () => {
 const INITIAL_FILTERS = {
   keyword: '',
   systemName: undefined,
+  unit: undefined,
   priority: undefined,
   closeStatus: undefined,
   issueDescription: '',
+  dateRange: undefined,
 };
 
 const INITIAL_QUERY = {
@@ -140,10 +144,48 @@ const INITIAL_QUERY = {
   pageSize: 20,
   keyword: '',
   systemName: '',
+  unit: '',
   priority: '',
   closeStatus: '',
   issueDescription: '',
+  startDate: '',
+  endDate: '',
 };
+
+/**
+ * 支持从其它页面（如数据统计）带参数跳转：
+ * /test-cases-v2?close_status=0&system_name=xx&unit=yy&start_date=2026-11-01&end_date=2026-11-04
+ */
+const readFiltersFromUrl = () => {
+  if (typeof window === 'undefined') return { ...INITIAL_FILTERS };
+
+  const params = new URLSearchParams(window.location.search);
+  const pick = (key) => params.get(key) || undefined;
+  const startDate = pick('start_date');
+  const endDate = pick('end_date');
+
+  return {
+    keyword: pick('keyword') || '',
+    systemName: pick('system_name'),
+    unit: pick('unit'),
+    priority: pick('priority'),
+    closeStatus: pick('close_status'),
+    issueDescription: pick('issue_description') || '',
+    dateRange: startDate && endDate ? [startDate, endDate] : undefined,
+  };
+};
+
+const filtersToQuery = (draft) => ({
+  ...INITIAL_QUERY,
+  keyword: draft.keyword?.trim() || '',
+  systemName: draft.systemName?.trim() || '',
+  unit: draft.unit || '',
+  priority: draft.priority || '',
+  closeStatus: draft.closeStatus || '',
+  issueDescription: draft.issueDescription || '',
+  startDate: toDateString(draft.dateRange?.[0]),
+  endDate: toDateString(draft.dateRange?.[1]),
+});
 
 const INITIAL_FORM = {
   case_no: '',
@@ -341,12 +383,16 @@ function withFallbackOptions(options, values) {
 
 export default function TestCasesV2() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [form] = Form.useForm();
   // 详情抽屉内宽度有限，窄屏时改为单列展示，避免标签与值互相挤压
   const isNarrowScreen = useMediaQuery('(max-width: 767px)');
 
-  const [query, setQuery] = useState(INITIAL_QUERY);
-  const [filterDraft, setFilterDraft] = useState(INITIAL_FILTERS);
+  // 首次进入时读取地址栏筛选参数（数据统计页点击图表条目跳转而来）
+  const [initialFilters] = useState(readFiltersFromUrl);
+  const [query, setQuery] = useState(() => filtersToQuery(initialFilters));
+  const [filterDraft, setFilterDraft] = useState(initialFilters);
+  const [unitOptions, setUnitOptions] = useState([]);
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(0);
@@ -383,6 +429,29 @@ export default function TestCasesV2() {
       // 忽略隐私模式等导致的存储异常
     }
   }, [columnConfig]);
+
+  // 参数已消费，清掉地址栏查询串，避免与后续手动筛选产生歧义
+  useEffect(() => {
+    if (location.search) navigate(location.pathname, { replace: true });
+  }, [location.pathname, location.search, navigate]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchTestCaseFilterOptions()
+      .then((result) => {
+        if (!cancelled) {
+          setUnitOptions((result?.units || []).map((value) => ({ label: value, value })));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setUnitOptions([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -430,9 +499,12 @@ export default function TestCasesV2() {
     const params = { page: query.page, page_size: query.pageSize };
     if (query.keyword.trim()) params.keyword = query.keyword.trim();
     if (query.systemName.trim()) params.system_name = query.systemName.trim();
+    if (query.unit) params.unit = query.unit;
     if (query.priority) params.priority = query.priority;
     if (query.closeStatus) params.close_status = query.closeStatus;
     if (query.issueDescription) params.issue_description = query.issueDescription;
+    if (query.startDate) params.start_date = query.startDate;
+    if (query.endDate) params.end_date = query.endDate;
 
     fetchTestCases(params)
       .then((result) => {
@@ -492,16 +564,22 @@ export default function TestCasesV2() {
       [
         query.keyword,
         query.systemName,
+        query.unit,
         query.priority,
         query.closeStatus,
         query.issueDescription,
+        query.startDate,
+        query.endDate,
       ].filter(Boolean).length,
     [
       query.keyword,
       query.systemName,
+      query.unit,
       query.priority,
       query.closeStatus,
       query.issueDescription,
+      query.startDate,
+      query.endDate,
     ],
   );
 
@@ -527,6 +605,12 @@ export default function TestCasesV2() {
     [closeStatusDictionary, editing?.close_status, filterDraft.closeStatus],
   );
 
+  // 单位下拉：候选值来自接口，同时兼容外部跳转带入的、历史数据里的值
+  const unitSelectOptions = useMemo(
+    () => withFallbackOptions(unitOptions, [filterDraft.unit, editing?.unit]),
+    [editing?.unit, filterDraft.unit, unitOptions],
+  );
+
   const dictionaryLabel = (options, value) =>
     options.find((item) => item.value === value)?.label || value;
 
@@ -534,11 +618,14 @@ export default function TestCasesV2() {
     setQuery((previous) => ({
       ...previous,
       page: 1,
-      keyword: filterDraft.keyword.trim(),
+      keyword: filterDraft.keyword?.trim() || '',
       systemName: filterDraft.systemName?.trim() || '',
+      unit: filterDraft.unit || '',
       priority: filterDraft.priority || '',
       closeStatus: filterDraft.closeStatus || '',
       issueDescription: filterDraft.issueDescription || '',
+      startDate: toDateString(filterDraft.dateRange?.[0]),
+      endDate: toDateString(filterDraft.dateRange?.[1]),
     }));
   };
 
@@ -1051,6 +1138,31 @@ export default function TestCasesV2() {
               value={filterDraft.systemName}
               onChange={(value) =>
                 setFilterDraft((previous) => ({ ...previous, systemName: value }))
+              }
+            />
+          </div>
+          <div className="tcv2-filter-field tcv2-filter-field--unit">
+            <span className="tcv2-filter-label">单位</span>
+            <Select
+              allowClear
+              showSearch
+              placeholder="全部单位"
+              options={unitSelectOptions}
+              value={filterDraft.unit}
+              onChange={(value) =>
+                setFilterDraft((previous) => ({ ...previous, unit: value }))
+              }
+            />
+          </div>
+          <div className="tcv2-filter-field tcv2-filter-field--date">
+            <span className="tcv2-filter-label">创建时间</span>
+            <DatePicker.RangePicker
+              allowClear
+              placeholder={['开始日期', '结束日期']}
+              value={filterDraft.dateRange}
+              style={{ width: '100%' }}
+              onChange={(range) =>
+                setFilterDraft((previous) => ({ ...previous, dateRange: range }))
               }
             />
           </div>

@@ -15,6 +15,11 @@ export function fetchTestCaseDetail(caseId) {
   return request.get(`${BASE}/${caseId}`);
 }
 
+/** 列表筛选项候选值（目前为单位）。 */
+export function fetchTestCaseFilterOptions() {
+  return request.get(`${BASE}/options`);
+}
+
 export function createTestCase(payload) {
   return request.post(BASE, payload);
 }

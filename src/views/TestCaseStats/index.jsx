@@ -11,6 +11,7 @@ import {
   Typography,
 } from '@arco-design/web-react';
 import { IconRefresh } from '@arco-design/web-react/icon';
+import { useNavigate } from 'react-router-dom';
 import PageHeader from '../../components/common/PageHeader';
 import BarList from '../../components/stats/BarList';
 import DonutChart, { DONUT_COLORS } from '../../components/stats/DonutChart';
@@ -73,6 +74,7 @@ const toDateString = (value) => {
  * 展示：指标卡 + 趋势面积图 + 状态环形图 + 系统/执行人条形图 + 明细表格。
  */
 export default function TestCaseStats() {
+  const navigate = useNavigate();
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [query, setQuery] = useState(INITIAL_QUERY);
   const [data, setData] = useState(EMPTY_STATS);
@@ -143,6 +145,29 @@ export default function TestCaseStats() {
   ];
 
   const statusItems = data.by_status || [];
+
+  /**
+   * 跳转到测试用例页，并带上当前统计筛选条件 + 点击维度。
+   * 例如点击“测试通过”扇区：close_status=0&system_name=xxx&start_date=...
+   */
+  const goToCases = (patch = {}) => {
+    const merged = {
+      start_date: query.startDate,
+      end_date: query.endDate,
+      close_status: query.closeStatus,
+      unit: query.unit,
+      system_name: query.systemName,
+      ...patch,
+    };
+
+    const params = new URLSearchParams();
+    Object.entries(merged).forEach(([key, value]) => {
+      if (value) params.set(key, value);
+    });
+
+    const search = params.toString();
+    navigate(`/test-cases-v2${search ? `?${search}` : ''}`);
+  };
 
   const applyFilters = () => {
     const [start, end] = filters.range || [];
@@ -333,10 +358,15 @@ export default function TestCaseStats() {
             <section className="tcs-card" aria-label="结单状态分布">
               <header className="tcs-card__head">
                 <h3 className="tcs-card__title">结单状态分布</h3>
-                <span className="tcs-card__meta">共 {statusItems.length} 种状态</span>
+                <span className="tcs-card__meta">
+                  共 {statusItems.length} 种状态 · 点击查看用例
+                </span>
               </header>
               <div className="tcs-card__body tcs-status">
-                <DonutChart items={statusItems} />
+                <DonutChart
+                  items={statusItems}
+                  onItemClick={(item) => goToCases({ close_status: item.code })}
+                />
                 <div className="tcs-status__table">
                   <Table
                     rowKey="code"
@@ -345,6 +375,10 @@ export default function TestCaseStats() {
                     columns={statusColumns}
                     data={statusItems}
                     pagination={false}
+                    onRow={(record) => ({
+                      onClick: () => goToCases({ close_status: record.code }),
+                      style: { cursor: 'pointer' },
+                    })}
                   />
                 </div>
               </div>
@@ -353,17 +387,23 @@ export default function TestCaseStats() {
             <section className="tcs-card" aria-label="所属系统分布">
               <header className="tcs-card__head">
                 <h3 className="tcs-card__title">所属系统 TOP</h3>
-                <span className="tcs-card__meta">按用例数排序</span>
+                <span className="tcs-card__meta">按用例数排序 · 点击查看用例</span>
               </header>
               <div className="tcs-card__body">
-                <BarList items={data.by_system} max={8} />
+                <BarList
+                  items={data.by_system}
+                  max={8}
+                  onItemClick={(item) => goToCases({ system_name: item.label })}
+                />
               </div>
             </section>
 
             <section className="tcs-card" aria-label="单位统计">
               <header className="tcs-card__head">
                 <h3 className="tcs-card__title">单位统计</h3>
-                <span className="tcs-card__meta">共 {data.by_unit.length} 项（含未填写）</span>
+                <span className="tcs-card__meta">
+                  共 {data.by_unit.length} 项 · 点击查看用例
+                </span>
               </header>
               <div className="tcs-card__body">
                 <Table
@@ -373,6 +413,14 @@ export default function TestCaseStats() {
                   data={data.by_unit}
                   pagination={false}
                   scroll={{ y: 252 }}
+                  onRow={(record) =>
+                    record.label === '未填写'
+                      ? {}
+                      : {
+                          onClick: () => goToCases({ unit: record.label }),
+                          style: { cursor: 'pointer' },
+                        }
+                  }
                 />
               </div>
             </section>

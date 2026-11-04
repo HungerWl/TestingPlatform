@@ -5,7 +5,7 @@ export const DONUT_COLORS = COLORS;
 /**
  * 环形图（SVG 实现，无第三方图表依赖）。
  */
-export default function DonutChart({ items = [], size = 172, thickness = 18 }) {
+export default function DonutChart({ items = [], size = 172, thickness = 18, onItemClick }) {
   const total = items.reduce((sum, item) => sum + item.count, 0);
   const radius = (size - thickness) / 2;
   const center = size / 2;
@@ -27,6 +27,8 @@ export default function DonutChart({ items = [], size = 172, thickness = 18 }) {
         strokeDasharray={`${length} ${circumference - length}`}
         strokeDashoffset={-offset}
         transform={`rotate(-90 ${center} ${center})`}
+        style={{ cursor: onItemClick ? 'pointer' : 'default' }}
+        onClick={onItemClick ? () => onItemClick(item) : undefined}
       >
         <title>{`${item.label}：${item.count} 条`}</title>
       </circle>

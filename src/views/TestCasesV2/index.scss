@@ -93,6 +93,16 @@
   gap: 3px;
 }
 
+.tcv2-filter-field--unit {
+  min-width: 150px;
+  flex-basis: 170px;
+}
+
+.tcv2-filter-field--date {
+  min-width: 240px;
+  flex-basis: 258px;
+}
+
 .tcv2-filter-field--priority {
   min-width: 130px;
   flex-basis: 150px;
@@ -304,6 +314,8 @@
   }
 
   .tcv2-filter-field,
+  .tcv2-filter-field--unit,
+  .tcv2-filter-field--date,
   .tcv2-filter-field--priority,
   .tcv2-filter-field--status,
   .tcv2-filter-field--issue {
