@@ -158,6 +158,11 @@ const nullIfEmpty = (value) => {
   return value.trim() ? value : null;
 };
 
+// 用例名称非必填，为空时统一展示占位文案，避免出现空白单元格
+const CASE_NAME_PLACEHOLDER = '未命名用例';
+const caseDisplayName = (value) =>
+  typeof value === 'string' && value.trim() ? value : CASE_NAME_PLACEHOLDER;
+
 function PriorityTag({ priority }) {
   if (!priority) return <Typography.Text type="secondary">—</Typography.Text>;
   return <Tag color={PRIORITY_COLOR[priority] || 'gray'}>{priority}</Tag>;
@@ -170,12 +175,10 @@ function CaseFormFields({ systemOptions, closeStatusOptions }) {
       <Grid.Row gutter={16}>
         <Grid.Col xs={24} md={12}>
           <Form.Item
-            label={<FormLabel required>用例名称</FormLabel>}
+            label={<FormLabel>用例名称</FormLabel>}
             field="name"
-            rules={[
-              { required: true, message: '请输入用例名称' },
-              { maxLength: 128, message: '最多 128 个字符' },
-            ]}
+            extra="非必填，留空时仅以业务编号标识"
+            rules={[{ maxLength: 128, message: '最多 128 个字符' }]}
           >
             <Input placeholder="例如：登录流程冒烟测试" maxLength={128} showWordLimit />
           </Form.Item>
@@ -534,7 +537,8 @@ export default function TestCasesV2() {
     try {
       const payload = {
         case_no: values.case_no.trim(),
-        name: values.name.trim(),
+        // 用例名称非必填，留空时按 null 存储，避免出现空字符串脏数据
+        name: nullIfEmpty(values.name),
         system_name: values.system_name.trim(),
         unit: nullIfEmpty(values.unit),
         executors: (Array.isArray(values.executors) ? values.executors : [])
@@ -606,7 +610,7 @@ export default function TestCasesV2() {
       state: {
         caseId: record.id,
         caseNo: record.case_no,
-        caseLabel: `${record.case_no} · ${record.name}`,
+        caseLabel: `${record.case_no} · ${caseDisplayName(record.name)}`,
         case: {
           id: record.id,
           case_no: record.case_no,
@@ -695,8 +699,8 @@ export default function TestCasesV2() {
       width: 290,
       render: (value, record) => (
         <div className="tcv2-name-cell">
-          <span className="tcv2-name" title={value}>
-            {value}
+          <span className={`tcv2-name${value ? '' : ' is-placeholder'}`} title={value || ''}>
+            {caseDisplayName(value)}
           </span>
           <span className="tcv2-case-no">{record.case_no}</span>
         </div>
@@ -730,7 +734,7 @@ export default function TestCasesV2() {
       width: 110,
       render: (value) =>
         value ? (
-          <Tag color={{ passed: 'green', failed: 'red', online_verify: 'orange' }[value] || 'gray'}>
+          <Tag color={{ 0: 'green', 1: 'red', 2: 'orange' }[value] || 'gray'}>
             {dictionaryLabel(closeStatusOptions, value)}
           </Tag>
         ) : (
@@ -1092,7 +1096,7 @@ export default function TestCasesV2() {
           {detail ? (
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
               <div>
-                <Typography.Title heading={5}>{detail.name}</Typography.Title>
+                <Typography.Title heading={5}>{caseDisplayName(detail.name)}</Typography.Title>
                 <Space wrap>
                   <Tag>{detail.system_name}</Tag>
                   {detail.unit ? <Tag color="purple">{detail.unit}</Tag> : null}

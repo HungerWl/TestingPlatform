@@ -216,6 +216,11 @@
   white-space: nowrap;
 }
 
+.tcv2-name.is-placeholder {
+  color: var(--tp-muted);
+  font-weight: 400;
+}
+
 .tcv2-case-no {
   flex: 0 0 auto;
   color: var(--tp-muted);

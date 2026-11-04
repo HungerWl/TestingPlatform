@@ -130,11 +130,13 @@ function CaseSummary({ testCases = [] }) {
   if (!testCases.length) return <Typography.Text type="secondary">—</Typography.Text>;
 
   const first = testCases[0];
+  // 用例名称非必填，为空时统一展示占位文案
+  const caseName = first.name?.trim() ? first.name : '未命名用例';
 
   return (
     <div className="tsv2-case-cell">
-      <span className="tsv2-case-name" title={first.name}>
-        {first.name}
+      <span className="tsv2-case-name" title={caseName}>
+        {caseName}
       </span>
       <Tag color="arcoblue">{first.case_no}</Tag>
       {testCases.length > 1 && <Tag color="gray">+{testCases.length - 1}</Tag>}
@@ -597,15 +599,18 @@ export default function TestScripts() {
     }
   };
 
-  const detailCaseTags = (detail?.test_cases || []).map((item) => (
-    <Tooltip key={item.id} content={`${item.case_no} · ${item.name}`}>
-      <Tag color="arcoblue">
-        <span className="tsv-detail__case-text">
-          {item.case_no} · {item.name}
-        </span>
-      </Tag>
-    </Tooltip>
-  ));
+  const detailCaseTags = (detail?.test_cases || []).map((item) => {
+    const caseName = item.name?.trim() ? item.name : '未命名用例';
+    return (
+      <Tooltip key={item.id} content={`${item.case_no} · ${caseName}`}>
+        <Tag color="arcoblue">
+          <span className="tsv-detail__case-text">
+            {item.case_no} · {caseName}
+          </span>
+        </Tag>
+      </Tooltip>
+    );
+  });
 
   const columns = [
     {

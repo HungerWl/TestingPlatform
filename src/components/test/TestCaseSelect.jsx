@@ -4,9 +4,11 @@ import { fetchTestCases } from '../../api/testCases';
 
 function toOption(testCase) {
   if (!testCase) return null;
+  // 用例名称非必填，为空时统一展示占位文案
+  const caseName = testCase.name?.trim() ? testCase.name : '未命名用例';
   return {
     value: testCase.id,
-    label: `${testCase.case_no} · ${testCase.name}`,
+    label: `${testCase.case_no} · ${caseName}`,
   };
 }
 
