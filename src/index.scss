@@ -230,9 +230,9 @@ a:focus-visible,
 
 .tp-content__inner {
   width: 100%;
-  max-width: 1560px;
+  max-width: none;
   margin: 0 auto;
-  padding: 26px 24px 34px;
+  padding: 18px 20px 24px;
 }
 
 /* 页面快照：内容区去边距，让内嵌的 Trace Viewer 铺满整个展示区 */
@@ -274,7 +274,7 @@ a:focus-visible,
 
 @media (min-width: $bp-wide) {
   .tp-content__inner {
-    padding: 32px 36px 40px;
+    padding: 22px 28px 28px;
   }
 }
 
@@ -714,7 +714,7 @@ a:focus-visible,
     padding: 0 14px;
   }
   .tp-content__inner {
-    padding: 20px 15px 28px;
+    padding: 14px 12px 20px;
   }
   .tp-main.is-compact {
     height: auto;

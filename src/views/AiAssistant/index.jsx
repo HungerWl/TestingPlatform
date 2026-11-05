@@ -93,7 +93,8 @@ function AnswerCases({ cases, onAdopt }) {
           <div className="ai-case__head">
             <span className="ai-case__no">{record.case_no}</span>
             <Tag>{record.system_name}</Tag>
-            {typeof record.score === 'number' && (
+            {record.close_status_name && <Tag color="arcoblue">{record.close_status_name}</Tag>}
+            {typeof record.score === 'number' && record.score > 0 && (
               <span className="ai-case__score">相似度 {Math.round(record.score * 100)}%</span>
             )}
           </div>
@@ -323,7 +324,6 @@ export default function AiAssistant() {
           <section className="ai-main">
             <div className="ai-main__bar">
               <div className="ai-assistant__title">
-                <img className="ai-assistant__logo" src={AVATAR_SRC} alt="" />
                 <span>AI 质量助手</span>
               </div>
               <Space size={6}>
@@ -382,8 +382,8 @@ export default function AiAssistant() {
                         )}
                         {item.status === 'done' && item.answer && (
                           <>
-                            <Typography.Paragraph className="ai-message__summary">
-                              {item.answer.summary}
+                            <Typography.Paragraph className="ai-reply">
+                              {item.answer.reply || item.answer.summary}
                             </Typography.Paragraph>
                             <AnswerCases
                               cases={item.answer.cases}

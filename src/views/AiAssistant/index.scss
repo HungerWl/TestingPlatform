@@ -357,9 +357,13 @@
   flex: 1 1 auto;
 }
 
-.ai-message__summary {
-  margin: 0 0 10px;
+.ai-reply {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.85;
   color: var(--tp-ink);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .ai-loading {
