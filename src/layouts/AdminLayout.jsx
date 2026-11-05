@@ -18,9 +18,12 @@ export default function AdminLayout() {
   // 页面快照需要铺满内容区，去掉内容容器自带的 padding 和 max-width。
   const flushContent = location.pathname === '/page-snapshot';
   // 高密度数据页使用更紧凑的内容边距，给表格留出更多空间。
-  const compactContent = ['/test-cases-v2', '/test-scripts', '/dictionaries'].includes(
-    location.pathname,
-  );
+  const compactContent = [
+    '/test-cases-v2',
+    '/test-scripts',
+    '/dictionaries',
+    '/ai-assistant',
+  ].includes(location.pathname);
 
   useEffect(() => {
     setMobileOpen(false);

@@ -30,6 +30,7 @@ export const DEMO_PERMISSIONS = [
   'dictionary:view',
   'snapshot:view',
   'profile:view',
+  'ai:view',
 ];
 
 export function getToken() {

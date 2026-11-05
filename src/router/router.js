@@ -6,6 +6,7 @@ import {
   IconDashboard,
   IconFile,
   IconLock,
+  IconRobot,
   IconUser,
 } from '@arco-design/web-react/icon';
 
@@ -90,6 +91,16 @@ export const appRoutes = [
       icon: IconCamera,
       permission: 'snapshot:view',
       eyebrow: 'PAGE SNAPSHOT / 04',
+    },
+  },
+  {
+    path: '/ai-assistant',
+    component: lazy(() => import('../views/AiAssistant')),
+    meta: {
+      title: 'AI 质量助手',
+      icon: IconRobot,
+      permission: 'ai:view',
+      eyebrow: 'AI QUALITY ANALYST / 05',
     },
   },
   {
