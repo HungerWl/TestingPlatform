@@ -52,7 +52,8 @@ export default function AppRouter() {
       ))}
 
       <Route element={<AdminLayout />}>
-        <Route index element={<Navigate to="/test-cases-v2" replace />} />
+        {/* 系统初始化（启动动画）结束后默认落在个人中心 */}
+        <Route index element={<Navigate to="/profile" replace />} />
         <Route path="/test-cases" element={<Navigate to="/test-cases-v2" replace />} />
         {consoleRoutes.map((route) => (
           <Route

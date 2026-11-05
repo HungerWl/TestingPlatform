@@ -815,6 +815,7 @@ export default function TestScripts() {
           <div className="tsv2-filter-field">
             <Form.Item label="脚本名称" field="keyword">
               <Input
+                size="small"
                 allowClear
                 prefix={<IconSearch />}
                 placeholder="搜索脚本名称"
@@ -824,12 +825,13 @@ export default function TestScripts() {
           </div>
           <div className="tsv2-filter-field tsv2-filter-field--type">
             <Form.Item label="脚本类型" field="script_type">
-              <Select allowClear placeholder="全部类型" options={SCRIPT_TYPES} />
+              <Select size="small" allowClear placeholder="全部类型" options={SCRIPT_TYPES} />
             </Form.Item>
           </div>
           <div className="tsv2-filter-field tsv2-filter-field--case">
             <Form.Item label="关联用例编号" field="case_no">
               <Input
+                size="small"
                 allowClear
                 placeholder="例如：DAS-20261026-002"
                 onPressEnter={() => filterForm.submit()}

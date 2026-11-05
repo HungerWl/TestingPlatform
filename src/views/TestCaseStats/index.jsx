@@ -273,6 +273,7 @@ export default function TestCaseStats() {
         <div className="tcs-filter-field tcs-filter-field--range">
           <span className="tcs-filter-label">创建时间</span>
           <DatePicker.RangePicker
+            size="small"
             allowClear
             value={filters.range}
             placeholder={['开始日期', '结束日期']}
@@ -283,6 +284,7 @@ export default function TestCaseStats() {
         <div className="tcs-filter-field">
           <span className="tcs-filter-label">结单状态</span>
           <Select
+            size="small"
             allowClear
             placeholder="全部状态"
             options={statusDictionary}
@@ -293,6 +295,7 @@ export default function TestCaseStats() {
         <div className="tcs-filter-field">
           <span className="tcs-filter-label">单位</span>
           <Select
+            size="small"
             allowClear
             showSearch
             placeholder="全部单位"
@@ -304,6 +307,7 @@ export default function TestCaseStats() {
         <div className="tcs-filter-field">
           <span className="tcs-filter-label">所属系统</span>
           <Select
+            size="small"
             allowClear
             showSearch
             placeholder="全部系统"

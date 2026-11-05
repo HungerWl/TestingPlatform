@@ -64,7 +64,7 @@ export default function Sidebar({ collapsed, mobileOpen, onNavigate, onToggleCol
     >
       <div className="tp-sidebar__grid" aria-hidden="true" />
 
-      <Link to="/test-cases" className="tp-brand" onClick={onNavigate} aria-label="Testing Platform 首页">
+      <Link to="/" className="tp-brand" onClick={onNavigate} aria-label="Testing Platform 首页">
         <BrandMark className="tp-brand__mark" />
         <span className="tp-brand__copy">
           <span className="tp-brand__title">TESTING PLATFORM</span>

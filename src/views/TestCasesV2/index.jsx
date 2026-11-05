@@ -27,6 +27,7 @@ import {
 import {
   IconCode,
   IconDelete,
+  IconDown,
   IconDownload,
   IconEdit,
   IconEye,
@@ -35,6 +36,7 @@ import {
   IconRefresh,
   IconSearch,
   IconSettings,
+  IconUp,
   IconUpload,
 } from '@arco-design/web-react/icon';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -199,6 +201,7 @@ const INITIAL_FORM = {
   expected_result: '',
   close_status: undefined,
   issue_description: '',
+  fix_plan: '',
   remark: '',
 };
 
@@ -328,6 +331,14 @@ function CaseFormFields({ systemOptions, closeStatusOptions }) {
             />
           </Form.Item>
         </Grid.Col>
+        <Grid.Col xs={24}>
+          <Form.Item label={<FormLabel>修复方案</FormLabel>} field="fix_plan">
+            <Input.TextArea
+              placeholder="填写修复方案，例如：点击弹框，会进行二次确认。"
+              autoSize={{ minRows: 3, maxRows: 8 }}
+            />
+          </Form.Item>
+        </Grid.Col>
       </Grid.Row>
 
       <Divider orientation="left">测试内容</Divider>
@@ -399,6 +410,12 @@ export default function TestCasesV2() {
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [filtersOpen, setFiltersOpen] = useState(true);
+  // 从统计页下钻时会带上优先级/结单状态/问题描述，此时默认展开“更多筛选”，避免条件被隐藏
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(() =>
+    Boolean(
+      initialFilters.priority || initialFilters.closeStatus || initialFilters.issueDescription,
+    ),
+  );
   const [systemDictionary, setSystemDictionary] = useState([]);
   const [closeStatusDictionary, setCloseStatusDictionary] = useState([]);
 
@@ -583,6 +600,12 @@ export default function TestCasesV2() {
     ],
   );
 
+  // “更多筛选”里已生效的条件数量，用于按钮角标提示
+  const moreFilterCount = useMemo(
+    () => [query.priority, query.closeStatus, query.issueDescription].filter(Boolean).length,
+    [query.priority, query.closeStatus, query.issueDescription],
+  );
+
   const systemOptions = useMemo(() => {
     const options = [...systemDictionary];
     const extraValues = [filterDraft.systemName, editing?.system_name].filter(Boolean);
@@ -709,6 +732,7 @@ export default function TestCasesV2() {
         expected_result: nullIfEmpty(values.expected_result),
         close_status: values.close_status || null,
         issue_description: nullIfEmpty(values.issue_description),
+        fix_plan: nullIfEmpty(values.fix_plan),
         remark: nullIfEmpty(values.remark),
       };
 
@@ -1119,6 +1143,7 @@ export default function TestCasesV2() {
           <div className="tcv2-filter-field">
             <span className="tcv2-filter-label">名称 / 业务编号</span>
             <Input
+              size="small"
               allowClear
               prefix={<IconSearch />}
               placeholder="搜索用例名称或业务编号"
@@ -1132,6 +1157,7 @@ export default function TestCasesV2() {
           <div className="tcv2-filter-field">
             <span className="tcv2-filter-label">所属系统</span>
             <Select
+              size="small"
               allowClear
               placeholder="全部系统"
               options={systemOptions}
@@ -1144,6 +1170,7 @@ export default function TestCasesV2() {
           <div className="tcv2-filter-field tcv2-filter-field--unit">
             <span className="tcv2-filter-label">单位</span>
             <Select
+              size="small"
               allowClear
               showSearch
               placeholder="全部单位"
@@ -1157,6 +1184,7 @@ export default function TestCasesV2() {
           <div className="tcv2-filter-field tcv2-filter-field--date">
             <span className="tcv2-filter-label">创建时间</span>
             <DatePicker.RangePicker
+              size="small"
               allowClear
               placeholder={['开始日期', '结束日期']}
               value={filterDraft.dateRange}
@@ -1166,44 +1194,61 @@ export default function TestCasesV2() {
               }
             />
           </div>
-          <div className="tcv2-filter-field tcv2-filter-field--priority">
-            <span className="tcv2-filter-label">优先级</span>
-            <Select
-              allowClear
-              placeholder="全部优先级"
-              options={PRIORITY_OPTIONS}
-              value={filterDraft.priority}
-              onChange={(value) =>
-                setFilterDraft((previous) => ({ ...previous, priority: value }))
-              }
-            />
-          </div>
-          <div className="tcv2-filter-field tcv2-filter-field--status">
-            <span className="tcv2-filter-label">结单状态</span>
-            <Select
-              allowClear
-              placeholder="全部状态"
-              options={closeStatusOptions}
-              value={filterDraft.closeStatus}
-              onChange={(value) =>
-                setFilterDraft((previous) => ({ ...previous, closeStatus: value }))
-              }
-            />
-          </div>
-          <div className="tcv2-filter-field tcv2-filter-field--issue">
-            <span className="tcv2-filter-label">问题描述</span>
-            <Input
-              allowClear
-              prefix={<IconSearch />}
-              placeholder="搜索问题描述"
-              value={filterDraft.issueDescription}
-              onChange={(value) =>
-                setFilterDraft((previous) => ({ ...previous, issueDescription: value }))
-              }
-              onPressEnter={applyFilters}
-            />
-          </div>
+
+          {moreFiltersOpen && (
+            <>
+              <div className="tcv2-filter-field tcv2-filter-field--priority">
+                <span className="tcv2-filter-label">优先级</span>
+                <Select
+                  size="small"
+                  allowClear
+                  placeholder="全部优先级"
+                  options={PRIORITY_OPTIONS}
+                  value={filterDraft.priority}
+                  onChange={(value) =>
+                    setFilterDraft((previous) => ({ ...previous, priority: value }))
+                  }
+                />
+              </div>
+              <div className="tcv2-filter-field tcv2-filter-field--status">
+                <span className="tcv2-filter-label">结单状态</span>
+                <Select
+                  size="small"
+                  allowClear
+                  placeholder="全部状态"
+                  options={closeStatusOptions}
+                  value={filterDraft.closeStatus}
+                  onChange={(value) =>
+                    setFilterDraft((previous) => ({ ...previous, closeStatus: value }))
+                  }
+                />
+              </div>
+              <div className="tcv2-filter-field tcv2-filter-field--issue">
+                <span className="tcv2-filter-label">问题描述</span>
+                <Input
+                  size="small"
+                  allowClear
+                  prefix={<IconSearch />}
+                  placeholder="搜索问题描述"
+                  value={filterDraft.issueDescription}
+                  onChange={(value) =>
+                    setFilterDraft((previous) => ({ ...previous, issueDescription: value }))
+                  }
+                  onPressEnter={applyFilters}
+                />
+              </div>
+            </>
+          )}
+
           <div className="tcv2-filter-actions">
+            <Button
+              size="small"
+              icon={moreFiltersOpen ? <IconUp /> : <IconDown />}
+              onClick={() => setMoreFiltersOpen((value) => !value)}
+            >
+              {moreFiltersOpen ? '收起更多' : '更多筛选'}
+              {moreFilterCount > 0 ? ` ${moreFilterCount}` : ''}
+            </Button>
             <Button size="small" type="primary" onClick={applyFilters}>
               查询
             </Button>
@@ -1343,6 +1388,16 @@ export default function TestCasesV2() {
                 <Input.TextArea
                   value={detail.issue_description || ''}
                   placeholder="暂无问题描述"
+                  readOnly
+                  autoSize={{ minRows: 3, maxRows: 8 }}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Typography.Text type="secondary">修复方案</Typography.Text>
+                <Input.TextArea
+                  value={detail.fix_plan || ''}
+                  placeholder="暂无修复方案"
                   readOnly
                   autoSize={{ minRows: 3, maxRows: 8 }}
                 />

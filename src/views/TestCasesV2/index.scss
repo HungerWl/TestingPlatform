@@ -73,11 +73,12 @@
   color: var(--tp-ember);
 }
 
-/* ---------- 横向筛选条 ---------- */
+/* ---------- 筛选条：常用条件 + 更多筛选 ---------- */
+/* 4 列栅格 + 操作列：字段按列等宽，条件再多也不会互相挤压 */
 .tcv2-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  align-items: end;
   gap: 8px;
   padding: 8px 10px;
   border: 1px solid var(--tp-line);
@@ -87,35 +88,15 @@
 
 .tcv2-filter-field {
   display: flex;
-  min-width: 190px;
-  flex: 0 1 280px;
+  min-width: 0;
   flex-direction: column;
   gap: 3px;
 }
 
-.tcv2-filter-field--unit {
-  min-width: 150px;
-  flex-basis: 170px;
-}
-
-.tcv2-filter-field--date {
-  min-width: 240px;
-  flex-basis: 258px;
-}
-
-.tcv2-filter-field--priority {
-  min-width: 130px;
-  flex-basis: 150px;
-}
-
-.tcv2-filter-field--status {
-  min-width: 140px;
-  flex-basis: 160px;
-}
-
-.tcv2-filter-field--issue {
-  min-width: 150px;
-  flex-basis: 180px;
+.tcv2-filter-field > .arco-select,
+.tcv2-filter-field > .arco-picker,
+.tcv2-filter-field > .arco-input-wrapper {
+  width: 100%;
 }
 
 .tcv2-filter-label {
@@ -125,12 +106,26 @@
   color: var(--tp-muted);
 }
 
+/* 查询/清空固定首行最右侧，不参与字段换行 */
 .tcv2-filter-actions {
   display: flex;
-  flex: 0 0 auto;
+  grid-column: 5;
+  grid-row: 1;
   align-items: center;
+  justify-self: end;
   gap: 6px;
-  margin-left: auto;
+}
+
+@media (max-width: 1280px) {
+  .tcv2-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tcv2-filter-actions {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    justify-self: end;
+  }
 }
 
 /* ---------- 表格主体 ---------- */
@@ -310,22 +305,13 @@
   }
 
   .tcv2-filters {
+    grid-template-columns: minmax(0, 1fr);
     padding: 8px;
-  }
-
-  .tcv2-filter-field,
-  .tcv2-filter-field--unit,
-  .tcv2-filter-field--date,
-  .tcv2-filter-field--priority,
-  .tcv2-filter-field--status,
-  .tcv2-filter-field--issue {
-    min-width: 0;
-    flex: 1 1 100%;
   }
 
   .tcv2-filter-actions {
     width: 100%;
-    margin-left: 0;
+    justify-content: flex-end;
   }
 
   .tcv2-sheet__foot {

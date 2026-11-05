@@ -12,10 +12,11 @@
 }
 
 /* ---------- 筛选条 ---------- */
+/* 4 列栅格 + 操作列：字段等宽，按钮与控件同排同高 */
 .tcs-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  align-items: end;
   gap: 8px;
   padding: 10px 12px;
   border: 1px solid var(--tp-line);
@@ -25,15 +26,9 @@
 
 .tcs-filter-field {
   display: flex;
-  min-width: 168px;
-  flex: 0 1 210px;
+  min-width: 0;
   flex-direction: column;
   gap: 3px;
-}
-
-.tcs-filter-field--range {
-  min-width: 260px;
-  flex-basis: 300px;
 }
 
 .tcs-filter-label {
@@ -45,10 +40,23 @@
 
 .tcs-filter-actions {
   display: flex;
-  flex: 0 0 auto;
+  grid-column: 5;
+  grid-row: 1;
   align-items: center;
+  justify-self: end;
   gap: 6px;
-  margin-left: auto;
+}
+
+@media (max-width: 1280px) {
+  .tcs-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tcs-filter-actions {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    justify-self: end;
+  }
 }
 
 /* ---------- 指标条 ---------- */
@@ -320,15 +328,13 @@
 }
 
 @media (max-width: 767px) {
-  .tcs-filter-field,
-  .tcs-filter-field--range {
-    min-width: 0;
-    flex: 1 1 100%;
+  .tcs-filters {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .tcs-filter-actions {
     width: 100%;
-    margin-left: 0;
+    justify-content: flex-end;
   }
 
   .tcs-metric + .tcs-metric {

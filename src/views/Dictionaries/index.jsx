@@ -686,12 +686,13 @@ export default function Dictionaries() {
         </div>
         <Space>
           <Button
+            size="small"
             icon={<IconRefresh />}
             onClick={() => setRefreshKey((key) => key + 1)}
           >
             刷新
           </Button>
-          <Button type="primary" icon={<IconPlus />} onClick={openCreateType}>
+          <Button size="small" type="primary" icon={<IconPlus />} onClick={openCreateType}>
             新增字典类型
           </Button>
         </Space>
@@ -708,6 +709,7 @@ export default function Dictionaries() {
           <span className="dict-filter-label">类型名称 / 编码</span>
           <Form.Item field="keyword" noStyle>
             <Input
+              size="small"
               allowClear
               prefix={<IconSearch />}
               placeholder="例如：性别 / gender"
@@ -718,14 +720,16 @@ export default function Dictionaries() {
         <div className="dict-filter-field dict-filter-field--status">
           <span className="dict-filter-label">启用状态</span>
           <Form.Item field="is_enabled" noStyle>
-            <Select allowClear placeholder="全部" options={ENABLED_OPTIONS} />
+            <Select size="small" allowClear placeholder="全部" options={ENABLED_OPTIONS} />
           </Form.Item>
         </div>
         <div className="dict-filter-actions">
-          <Button htmlType="submit" type="primary" icon={<IconFilter />}>
+          <Button size="small" htmlType="submit" type="primary" icon={<IconFilter />}>
             查询
           </Button>
-          <Button onClick={handleTypeReset}>重置</Button>
+          <Button size="small" onClick={handleTypeReset}>
+            重置
+          </Button>
         </div>
       </Form>
 
@@ -743,6 +747,7 @@ export default function Dictionaries() {
         <footer className="dict-sheet__foot">
           <span className="dict-sheet__count">共 {total} 个字典类型</span>
           <Pagination
+            size="small"
             current={query.page}
             pageSize={query.pageSize}
             total={total}
@@ -809,6 +814,7 @@ export default function Dictionaries() {
           >
             <Form.Item field="keyword" noStyle>
               <Input
+                size="small"
                 allowClear
                 prefix={<IconSearch />}
                 placeholder="搜索字典键或字典值"
@@ -816,13 +822,16 @@ export default function Dictionaries() {
               />
             </Form.Item>
             <Form.Item field="is_enabled" noStyle>
-              <Select allowClear placeholder="全部状态" options={ENABLED_OPTIONS} />
+              <Select size="small" allowClear placeholder="全部状态" options={ENABLED_OPTIONS} />
             </Form.Item>
-            <Button htmlType="submit" type="primary">
+            <Button size="small" htmlType="submit" type="primary">
               查询
             </Button>
-            <Button onClick={handleItemReset}>重置</Button>
+            <Button size="small" onClick={handleItemReset}>
+              重置
+            </Button>
             <Button
+              size="small"
               type="primary"
               icon={<IconPlus />}
               style={{ marginLeft: 'auto' }}
