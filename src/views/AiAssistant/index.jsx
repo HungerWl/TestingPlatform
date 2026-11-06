@@ -94,6 +94,12 @@ function AnswerCases({ cases, onAdopt }) {
             <span className="ai-case__no">{record.case_no}</span>
             <Tag>{record.system_name}</Tag>
             {record.close_status_name && <Tag color="arcoblue">{record.close_status_name}</Tag>}
+            {Array.isArray(record.doc_features) &&
+              record.doc_features.map((name) => (
+                <Tag key={name} color="purple">
+                  {name}
+                </Tag>
+              ))}
             {typeof record.score === 'number' && record.score > 0 && (
               <span className="ai-case__score">相似度 {Math.round(record.score * 100)}%</span>
             )}

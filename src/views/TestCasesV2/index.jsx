@@ -84,7 +84,7 @@ const COLUMN_ORDER_DEFAULT = [
   'system_name',
   'unit',
   'close_status',
-  'executors',
+  'doc_features',
   'issue_description',
   'script_count',
   'created_at',
@@ -94,7 +94,7 @@ const COLUMN_LABELS = {
   system_name: '所属系统',
   unit: '单位',
   close_status: '结单状态',
-  executors: '任务执行人',
+  doc_features: '单据特征',
   issue_description: '问题描述',
   script_count: '关联脚本',
   created_at: '创建时间',
@@ -137,6 +137,7 @@ const INITIAL_FILTERS = {
   unit: undefined,
   priority: undefined,
   closeStatus: undefined,
+  docFeature: [],
   issueDescription: '',
   dateRange: undefined,
 };
@@ -149,6 +150,7 @@ const INITIAL_QUERY = {
   unit: '',
   priority: '',
   closeStatus: '',
+  docFeature: [],
   issueDescription: '',
   startDate: '',
   endDate: '',
@@ -166,12 +168,15 @@ const readFiltersFromUrl = () => {
   const startDate = pick('start_date');
   const endDate = pick('end_date');
 
+  const rawDocFeature = pick('doc_feature');
+
   return {
     keyword: pick('keyword') || '',
     systemName: pick('system_name'),
     unit: pick('unit'),
     priority: pick('priority'),
     closeStatus: pick('close_status'),
+    docFeature: rawDocFeature ? rawDocFeature.split(',').filter(Boolean) : [],
     issueDescription: pick('issue_description') || '',
     dateRange: startDate && endDate ? [startDate, endDate] : undefined,
   };
@@ -184,6 +189,7 @@ const filtersToQuery = (draft) => ({
   unit: draft.unit || '',
   priority: draft.priority || '',
   closeStatus: draft.closeStatus || '',
+  docFeature: Array.isArray(draft.docFeature) ? [...draft.docFeature] : [],
   issueDescription: draft.issueDescription || '',
   startDate: toDateString(draft.dateRange?.[0]),
   endDate: toDateString(draft.dateRange?.[1]),
@@ -195,6 +201,7 @@ const INITIAL_FORM = {
   system_name: undefined,
   unit: '',
   executors: [],
+  doc_features: [],
   priority: undefined,
   precondition: '',
   test_steps: '',
@@ -245,7 +252,7 @@ function PriorityTag({ priority }) {
   return <Tag color={PRIORITY_COLOR[priority] || 'gray'}>{priority}</Tag>;
 }
 
-function CaseFormFields({ systemOptions, closeStatusOptions }) {
+function CaseFormFields({ systemOptions, closeStatusOptions, docFeatureOptions }) {
   return (
     <>
       <Divider orientation="left">基本信息</Divider>
@@ -293,6 +300,20 @@ function CaseFormFields({ systemOptions, closeStatusOptions }) {
         <Grid.Col xs={24} md={12}>
           <Form.Item label={<FormLabel>优先级</FormLabel>} field="priority">
             <Select allowClear placeholder="选择优先级" options={PRIORITY_OPTIONS} />
+          </Form.Item>
+        </Grid.Col>
+        <Grid.Col xs={24} md={12}>
+          <Form.Item
+            label={<FormLabel>单据特征</FormLabel>}
+            field="doc_features"
+            extra="非必填，可多选，标签来自数据字典"
+          >
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="选择单据特征"
+              options={docFeatureOptions}
+            />
           </Form.Item>
         </Grid.Col>
         <Grid.Col xs={24} md={12}>
@@ -413,11 +434,15 @@ export default function TestCasesV2() {
   // 从统计页下钻时会带上优先级/结单状态/问题描述，此时默认展开“更多筛选”，避免条件被隐藏
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(() =>
     Boolean(
-      initialFilters.priority || initialFilters.closeStatus || initialFilters.issueDescription,
+      initialFilters.priority ||
+        initialFilters.closeStatus ||
+        initialFilters.issueDescription ||
+        (initialFilters.docFeature || []).length,
     ),
   );
   const [systemDictionary, setSystemDictionary] = useState([]);
   const [closeStatusDictionary, setCloseStatusDictionary] = useState([]);
+  const [docFeatureDictionary, setDocFeatureDictionary] = useState([]);
 
   const [formVisible, setFormVisible] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -511,6 +536,22 @@ export default function TestCasesV2() {
 
   useEffect(() => {
     let cancelled = false;
+
+    fetchDictionaryOptions('doc_feature')
+      .then((result) => {
+        if (!cancelled) setDocFeatureDictionary(result?.items || []);
+      })
+      .catch(() => {
+        if (!cancelled) setDocFeatureDictionary([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     setLoading(true);
 
     const params = { page: query.page, page_size: query.pageSize };
@@ -519,6 +560,9 @@ export default function TestCasesV2() {
     if (query.unit) params.unit = query.unit;
     if (query.priority) params.priority = query.priority;
     if (query.closeStatus) params.close_status = query.closeStatus;
+    if (Array.isArray(query.docFeature) && query.docFeature.length) {
+      params.doc_feature = query.docFeature.join(',');
+    }
     if (query.issueDescription) params.issue_description = query.issueDescription;
     if (query.startDate) params.start_date = query.startDate;
     if (query.endDate) params.end_date = query.endDate;
@@ -587,13 +631,15 @@ export default function TestCasesV2() {
         query.issueDescription,
         query.startDate,
         query.endDate,
-      ].filter(Boolean).length,
+      ].filter(Boolean).length +
+      (Array.isArray(query.docFeature) && query.docFeature.length ? 1 : 0),
     [
       query.keyword,
       query.systemName,
       query.unit,
       query.priority,
       query.closeStatus,
+      query.docFeature,
       query.issueDescription,
       query.startDate,
       query.endDate,
@@ -602,8 +648,10 @@ export default function TestCasesV2() {
 
   // “更多筛选”里已生效的条件数量，用于按钮角标提示
   const moreFilterCount = useMemo(
-    () => [query.priority, query.closeStatus, query.issueDescription].filter(Boolean).length,
-    [query.priority, query.closeStatus, query.issueDescription],
+    () =>
+      [query.priority, query.closeStatus, query.issueDescription].filter(Boolean).length +
+      (Array.isArray(query.docFeature) && query.docFeature.length ? 1 : 0),
+    [query.priority, query.closeStatus, query.docFeature, query.issueDescription],
   );
 
   const systemOptions = useMemo(() => {
@@ -628,6 +676,15 @@ export default function TestCasesV2() {
     [closeStatusDictionary, editing?.close_status, filterDraft.closeStatus],
   );
 
+  const docFeatureOptions = useMemo(
+    () =>
+      withFallbackOptions(docFeatureDictionary, [
+        ...(Array.isArray(filterDraft.docFeature) ? filterDraft.docFeature : []),
+        ...(editing?.doc_features || []),
+      ]),
+    [docFeatureDictionary, editing?.doc_features, filterDraft.docFeature],
+  );
+
   // 单位下拉：候选值来自接口，同时兼容外部跳转带入的、历史数据里的值
   const unitSelectOptions = useMemo(
     () => withFallbackOptions(unitOptions, [filterDraft.unit, editing?.unit]),
@@ -646,6 +703,7 @@ export default function TestCasesV2() {
       unit: filterDraft.unit || '',
       priority: filterDraft.priority || '',
       closeStatus: filterDraft.closeStatus || '',
+      docFeature: Array.isArray(filterDraft.docFeature) ? [...filterDraft.docFeature] : [],
       issueDescription: filterDraft.issueDescription || '',
       startDate: toDateString(filterDraft.dateRange?.[0]),
       endDate: toDateString(filterDraft.dateRange?.[1]),
@@ -724,6 +782,9 @@ export default function TestCasesV2() {
         system_name: values.system_name.trim(),
         unit: nullIfEmpty(values.unit),
         executors: (Array.isArray(values.executors) ? values.executors : [])
+          .map((item) => (typeof item === 'string' ? item.trim() : ''))
+          .filter(Boolean),
+        doc_features: (Array.isArray(values.doc_features) ? values.doc_features : [])
           .map((item) => (typeof item === 'string' ? item.trim() : ''))
           .filter(Boolean),
         priority: values.priority || null,
@@ -866,7 +927,7 @@ export default function TestCasesV2() {
     {
       title: '#',
       dataIndex: '__index',
-      width: 48,
+      width: 55,
       align: 'center',
       fixed: 'left',
       render: (_, __, index) => (
@@ -914,7 +975,7 @@ export default function TestCasesV2() {
       title: '结单状态',
       key: 'close_status',
       dataIndex: 'close_status',
-      width: 110,
+      width: 150,
       render: (value) =>
         value ? (
           <Tag color={{ 0: 'green', 1: 'red', 2: 'orange' }[value] || 'gray'}>
@@ -925,15 +986,19 @@ export default function TestCasesV2() {
         ),
     },
     {
-      title: '任务执行人',
-      key: 'executors',
-      dataIndex: 'executors',
-      width: 150,
+      title: '单据特征',
+      key: 'doc_features',
+      dataIndex: 'doc_features',
+      width: 170,
       render: (value) =>
         Array.isArray(value) && value.length ? (
-          <span className="tcv2-ellipsis" title={value.join('、')}>
-            {value.join('、')}
-          </span>
+          <Space size={4} wrap>
+            {value.map((code) => (
+              <Tag key={code} color="arcoblue">
+                {dictionaryLabel(docFeatureOptions, code)}
+              </Tag>
+            ))}
+          </Space>
         ) : (
           <Typography.Text type="secondary">—</Typography.Text>
         ),
@@ -1223,6 +1288,20 @@ export default function TestCasesV2() {
                   }
                 />
               </div>
+              <div className="tcv2-filter-field tcv2-filter-field--feature">
+                <span className="tcv2-filter-label">单据特征</span>
+                <Select
+                  size="small"
+                  mode="multiple"
+                  allowClear
+                  placeholder="全部特征"
+                  options={docFeatureOptions}
+                  value={filterDraft.docFeature}
+                  onChange={(value) =>
+                    setFilterDraft((previous) => ({ ...previous, docFeature: value }))
+                  }
+                />
+              </div>
               <div className="tcv2-filter-field tcv2-filter-field--issue">
                 <span className="tcv2-filter-label">问题描述</span>
                 <Input
@@ -1315,6 +1394,7 @@ export default function TestCasesV2() {
           <CaseFormFields
             systemOptions={systemOptions}
             closeStatusOptions={closeStatusOptions}
+            docFeatureOptions={docFeatureOptions}
           />
         </Form>
       </Drawer>
@@ -1377,6 +1457,15 @@ export default function TestCasesV2() {
                     value: detail.close_status
                       ? dictionaryLabel(closeStatusOptions, detail.close_status)
                       : '—',
+                  },
+                  {
+                    label: '单据特征',
+                    value:
+                      Array.isArray(detail.doc_features) && detail.doc_features.length
+                        ? detail.doc_features
+                            .map((code) => dictionaryLabel(docFeatureOptions, code))
+                            .join('、')
+                        : '—',
                   },
                   { label: '创建时间', value: formatDateTime(detail.created_at) },
                   { label: '更新时间', value: formatDateTime(detail.updated_at) },
