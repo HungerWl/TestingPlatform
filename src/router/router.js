@@ -97,7 +97,7 @@ export const appRoutes = [
     path: '/ai-assistant',
     component: lazy(() => import('../views/AiAssistant')),
     meta: {
-      title: 'AI 质量助手',
+      title: 'ANI 助手',
       icon: IconRobot,
       permission: 'ai:view',
       eyebrow: 'AI QUALITY ANALYST / 05',

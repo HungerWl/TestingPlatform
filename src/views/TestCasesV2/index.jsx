@@ -304,20 +304,6 @@ function CaseFormFields({ systemOptions, closeStatusOptions, docFeatureOptions }
         </Grid.Col>
         <Grid.Col xs={24} md={12}>
           <Form.Item
-            label={<FormLabel>单据特征</FormLabel>}
-            field="doc_features"
-            extra="非必填，可多选，标签来自数据字典"
-          >
-            <Select
-              mode="multiple"
-              allowClear
-              placeholder="选择单据特征"
-              options={docFeatureOptions}
-            />
-          </Form.Item>
-        </Grid.Col>
-        <Grid.Col xs={24} md={12}>
-          <Form.Item
             label={<FormLabel>任务执行人</FormLabel>}
             field="executors"
             extra="输入姓名后按回车添加，支持多个执行人"
@@ -339,6 +325,20 @@ function CaseFormFields({ systemOptions, closeStatusOptions, docFeatureOptions }
               allowClear
               placeholder="选择结单状态"
               options={closeStatusOptions}
+            />
+          </Form.Item>
+        </Grid.Col>
+        <Grid.Col xs={24} md={12}>
+          <Form.Item
+            label={<FormLabel>单据特征</FormLabel>}
+            field="doc_features"
+            extra="非必填，可多选，标签来自数据字典"
+          >
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="选择单据特征"
+              options={docFeatureOptions}
             />
           </Form.Item>
         </Grid.Col>
@@ -940,7 +940,7 @@ export default function TestCasesV2() {
       title: '用例名称 / 业务编号',
       key: 'name',
       dataIndex: 'name',
-      width: 290,
+      width: 280,
       render: (value, record) => (
         <div className="tcv2-name-cell">
           <span className={`tcv2-name${value ? '' : ' is-placeholder'}`} title={value || ''}>

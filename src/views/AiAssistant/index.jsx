@@ -22,7 +22,7 @@ import { updateTestCase } from '../../api/testCases';
 import './index.scss';
 
 /**
- * AI 质量助手
+ * ANI 助手
  * ------------------------------------------------------------------
  * 左右布局：
  * - 左侧：提问输入 + 已提交问题条目（点击可跳转到右侧对应轮次）；
@@ -67,7 +67,7 @@ function BootIntro({ onFinish }) {
         onEnded={finish}
         onError={finish}
       />
-      <span className="ai-boot__hint">AI 质量助手正在初始化…</span>
+      <span className="ai-boot__hint">ANI 助手正在初始化…</span>
       <button type="button" className="ai-boot__skip" onClick={finish}>
         跳过
       </button>
@@ -78,7 +78,7 @@ function BootIntro({ onFinish }) {
 function EmptyState() {
   return (
     <div className="ai-empty">
-      <img className="ai-empty__image" src={AVATAR_SRC} alt="AI 质量助手" />
+      <img className="ai-empty__image" src={AVATAR_SRC} alt="ANI 助手" />
       <p className="ai-empty__text">{EMPTY_TEXT}</p>
     </div>
   );
@@ -330,7 +330,7 @@ export default function AiAssistant() {
           <section className="ai-main">
             <div className="ai-main__bar">
               <div className="ai-assistant__title">
-                <span>AI 质量助手</span>
+                <span>ANI 助手</span>
               </div>
               <Space size={6}>
                 <span className="ai-assistant__status">
@@ -374,7 +374,7 @@ export default function AiAssistant() {
                         <img
                           className="ai-message__avatar-img"
                           src={AVATAR_SRC}
-                          alt="AI 质量助手"
+                          alt="ANI 助手"
                         />
                       </div>
                       <div className="ai-message__content">
