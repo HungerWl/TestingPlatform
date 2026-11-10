@@ -940,7 +940,7 @@ export default function TestCasesV2() {
       title: '用例名称 / 业务编号',
       key: 'name',
       dataIndex: 'name',
-      width: 280,
+      width: 220,
       render: (value, record) => (
         <div className="tcv2-name-cell">
           <span className={`tcv2-name${value ? '' : ' is-placeholder'}`} title={value || ''}>
@@ -954,7 +954,7 @@ export default function TestCasesV2() {
       title: '所属系统',
       key: 'system_name',
       dataIndex: 'system_name',
-      width: 140,
+      width: 150,
       render: (value) => <Tag>{value}</Tag>,
     },
     {

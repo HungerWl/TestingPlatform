@@ -12,12 +12,20 @@ export function chatWithAi(question) {
   return request.post(`${BASE}/chat`, { question });
 }
 
-/** 全量重建向量索引，返回 { indexed }。 */
+/**
+ * 启动全量重建（异步），立即返回 { task_id, status, reused, total }。
+ * 已有未结束任务时 reused=true，前端应直接接入进度而不是重复触发。
+ */
 export function rebuildAiIndex() {
   return request.post(`${BASE}/index`);
 }
 
-/** 查询索引状态，返回 { backend, embedding, indexed, total }。 */
+/** 查询索引状态，返回 { backend, embedding, indexed, total, task }。 */
 export function fetchAiIndexStatus() {
   return request.get(`${BASE}/index/status`);
+}
+
+/** 请求取消正在执行的索引重建任务。 */
+export function cancelAiIndex() {
+  return request.post(`${BASE}/index/cancel`);
 }

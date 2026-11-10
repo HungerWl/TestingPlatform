@@ -3,6 +3,7 @@ import {
   Button,
   Input,
   Message,
+  Progress,
   Space,
   Spin,
   Tag,
@@ -14,6 +15,7 @@ import {
   IconSend,
 } from '@arco-design/web-react/icon';
 import {
+  cancelAiIndex,
   chatWithAi,
   fetchAiIndexStatus,
   rebuildAiIndex,
@@ -33,6 +35,25 @@ import './index.scss';
 const EMPTY_TEXT = '描述一个 bug 或问题，我会从历史用例中找出相似记录并给出修复方案。';
 const BOOT_KEY = 'ai-quality-assistant-booted';
 const AVATAR_SRC = '/dkxp.png';
+
+const INDEX_STATUS_LABEL = {
+  queued: '排队中',
+  running: '进行中',
+  succeeded: '已完成',
+  failed: '失败',
+  cancelled: '已取消',
+};
+
+/** 把秒数格式化为「x 小时 y 分钟」，用于展示索引预计剩余时间。 */
+function formatDuration(seconds) {
+  if (seconds == null) return '—';
+  if (seconds < 60) return `${seconds} 秒`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} 分钟`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${hours} 小时 ${rest} 分钟` : `${hours} 小时`;
+}
 
 function BootIntro({ onFinish }) {
   const [leaving, setLeaving] = useState(false);
@@ -145,7 +166,9 @@ export default function AiAssistant() {
   const [activeId, setActiveId] = useState(null);
   const [input, setInput] = useState('');
   const [indexing, setIndexing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [status, setStatus] = useState(null);
+  const [indexTask, setIndexTask] = useState(null);
   const [booting, setBooting] = useState(() => {
     try {
       return sessionStorage.getItem(BOOT_KEY) !== '1';
@@ -155,10 +178,15 @@ export default function AiAssistant() {
   });
   const bodyRef = useRef(null);
   const threadRefs = useRef({});
+  // 记录上一次任务状态，用于在「运行中 → 结束」时只提示一次
+  const lastTaskStatusRef = useRef(null);
 
   const loadStatus = useCallback(() => {
     fetchAiIndexStatus()
-      .then(setStatus)
+      .then((data) => {
+        setStatus(data);
+        setIndexTask(data?.task || null);
+      })
       .catch(() => {
         /* request.js 已统一提示 */
       });
@@ -167,6 +195,30 @@ export default function AiAssistant() {
   useEffect(() => {
     loadStatus();
   }, [loadStatus]);
+
+  // 任务排队/运行中时每 2 秒轮询进度；刷新页面后也会据此自动恢复
+  useEffect(() => {
+    const running = indexTask?.status === 'queued' || indexTask?.status === 'running';
+    if (!running) return undefined;
+    const timer = window.setInterval(loadStatus, 2000);
+    return () => window.clearInterval(timer);
+  }, [indexTask?.status, loadStatus]);
+
+  // 状态跃迁时给一次性反馈，避免轮询期间重复弹提示
+  useEffect(() => {
+    const current = indexTask?.status;
+    const previous = lastTaskStatusRef.current;
+    if (previous && previous !== current) {
+      if (current === 'succeeded') {
+        Message.success(`索引重建完成，共 ${indexTask.indexed} 条`);
+      } else if (current === 'failed') {
+        Message.error(`索引重建失败：${indexTask.error || '未知错误'}`);
+      } else if (current === 'cancelled') {
+        Message.info('索引重建已取消，已完成的索引已保留');
+      }
+    }
+    lastTaskStatusRef.current = current;
+  }, [indexTask]);
 
   const handleBootFinish = useCallback(() => {
     try {
@@ -223,13 +275,28 @@ export default function AiAssistant() {
   const handleRebuild = async () => {
     setIndexing(true);
     try {
-      await rebuildAiIndex();
-      Message.success('向量索引重建完成');
+      const result = await rebuildAiIndex();
+      Message.success(
+        result?.reused ? '已有重建任务进行中，已接入进度' : '索引重建任务已启动',
+      );
       loadStatus();
     } catch {
       // request.js 已统一提示
     } finally {
       setIndexing(false);
+    }
+  };
+
+  const handleCancelIndex = async () => {
+    setCancelling(true);
+    try {
+      await cancelAiIndex();
+      Message.info('已请求取消，任务将在当前批次结束后停止');
+      loadStatus();
+    } catch {
+      // request.js 已统一提示
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -258,6 +325,10 @@ export default function AiAssistant() {
       // request.js 已统一提示
     }
   };
+
+  const taskRunning =
+    indexTask?.status === 'queued' || indexTask?.status === 'running';
+  const showIndexPanel = Boolean(indexTask) && taskRunning;
 
   return (
     <div className="tp-page ai-assistant">
@@ -349,6 +420,43 @@ export default function AiAssistant() {
                 </Button>
               </Space>
             </div>
+
+            {showIndexPanel && (
+              <div className="ai-index">
+                <div className="ai-index__head">
+                  <span
+                    className={`ai-index__state is-${
+                      indexTask.stale ? 'failed' : indexTask.status
+                    }`}
+                  >
+                    {indexTask.stale
+                      ? '已中断'
+                      : INDEX_STATUS_LABEL[indexTask.status] || indexTask.status}
+                  </span>
+                  <span className="ai-index__count">
+                    已索引 {(indexTask.indexed ?? 0).toLocaleString()} /{' '}
+                    {(indexTask.total ?? 0).toLocaleString()}
+                  </span>
+                  <span className="ai-index__meta">
+                    {indexTask.rate_per_second > 0
+                      ? `约 ${indexTask.rate_per_second} 条/秒`
+                      : '速率统计中'}
+                    {indexTask.eta_seconds != null
+                      ? ` · 预计剩余 ${formatDuration(indexTask.eta_seconds)}`
+                      : ''}
+                  </span>
+                  {indexTask.failed > 0 && (
+                    <span className="ai-index__failed">失败 {indexTask.failed} 条</span>
+                  )}
+                  {!indexTask.stale && (
+                    <Button size="mini" loading={cancelling} onClick={handleCancelIndex}>
+                      取消
+                    </Button>
+                  )}
+                </div>
+                <Progress percent={indexTask.percent ?? 0} size="small" />
+              </div>
+            )}
 
             <div
               className={`ai-main__body${threads.length === 0 ? ' ai-main__body--empty' : ''}`}

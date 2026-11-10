@@ -488,6 +488,55 @@
   background: transparent;
 }
 
+/* ---------- 索引重建进度 ---------- */
+.ai-index {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--tp-line);
+  background: var(--tp-paper);
+}
+
+.ai-index__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--tp-muted);
+}
+
+.ai-index__state {
+  font-weight: 600;
+  color: var(--tp-ink);
+}
+
+.ai-index__state.is-succeeded {
+  color: #00a35c;
+}
+
+.ai-index__state.is-failed,
+.ai-index__failed {
+  color: #ff5c35;
+}
+
+.ai-index__count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--tp-ink);
+}
+
+.ai-index__meta,
+.ai-index__failed {
+  font-size: 11px;
+}
+
+.ai-index .arco-progress {
+  margin: 0;
+}
+
 /* ---------- 响应式 ---------- */
 @media (max-width: 1100px) {
   .ai-workspace {
